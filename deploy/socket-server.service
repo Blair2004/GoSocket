@@ -1,0 +1,43 @@
+[Unit]
+Description=Socket Server
+Documentation=https://github.com/yourusername/socket-server
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=socket
+Group=socket
+WorkingDirectory=/opt/socket-server
+Environment=SOCKET_PORT=8080
+Environment=JWT_SECRET=your-production-secret-here
+Environment=SOCKET_DEBUG=false
+ExecStart=/opt/socket-server/bin/socket-server
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=5
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/socket-server/logs
+NoNewPrivileges=true
+RestartSec=2
+Restart=always
+
+# Security settings
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+
+[Install]
+WantedBy=multi-user.target
