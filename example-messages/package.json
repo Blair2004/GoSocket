@@ -1,0 +1,16 @@
+{
+  "name": "socket-server-message-examples",
+  "version": "1.0.0",
+  "description": "Example messages and test utilities for the Socket Server",
+  "main": "test-messages.js",
+  "scripts": {
+    "test": "node test-messages.js",
+    "install-deps": "npm install ws"
+  },
+  "dependencies": {
+    "ws": "^8.0.0"
+  },
+  "keywords": ["websocket", "socket", "laravel", "real-time", "messaging"],
+  "author": "Socket Server Team",
+  "license": "MIT"
+}

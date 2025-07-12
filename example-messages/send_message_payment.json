@@ -1,0 +1,13 @@
+{
+  "action": "send_message",
+  "channel": "pos-terminal-1",
+  "event": "payment_received",
+  "data": {
+    "transaction_id": "TXN-2025-456",
+    "amount": 45.99,
+    "payment_method": "credit_card",
+    "card_last_four": "1234",
+    "customer_receipt": true,
+    "timestamp": "2025-07-11T14:15:30Z"
+  }
+}

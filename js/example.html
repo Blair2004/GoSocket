@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laravel Socket Client Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .connected { background: #d4edda; color: #155724; }
+        .disconnected { background: #f8d7da; color: #721c24; }
+        .connecting { background: #fff3cd; color: #856404; }
+        
+        .chat-container {
+            border: 1px solid #ddd;
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        
+        .message.sent { background: #e3f2fd; text-align: right; }
+        .message.received { background: #f3e5f5; }
+        .message.system { background: #e8f5e8; font-style: italic; }
+        
+        input, button {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        
+        button { background: #007bff; color: white; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .controls { margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Laravel Socket Client Example</h1>
+    
+    <div class="status" id="status">Disconnected</div>
+    
+    <div class="controls">
+        <input type="text" id="serverUrl" value="ws://localhost:8080/ws" placeholder="Server URL">
+        <button id="connectBtn" onclick="connect()">Connect</button>
+        <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+    </div>
+    
+    <div class="grid">
+        <div>
+            <h3>Chat</h3>
+            <div class="chat-container" id="chatMessages"></div>
+            <input type="text" id="roomId" value="1" placeholder="Room ID">
+            <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="handleEnter(event)">
+            <button onclick="sendMessage()" id="sendBtn" disabled>Send</button>
+            <button onclick="joinRoom()" id="joinBtn" disabled>Join Room</button>
+        </div>
+        
+        <div>
+            <h3>Channels</h3>
+            <input type="text" id="channelInput" placeholder="Channel name">
+            <button onclick="joinChannel()" id="joinChannelBtn" disabled>Join</button>
+            <button onclick="leaveChannel()" id="leaveChannelBtn" disabled>Leave</button>
+            
+            <h4>Joined Channels:</h4>
+            <div id="channelsList"></div>
+            
+            <h4>Actions</h4>
+            <button onclick="ping()" id="pingBtn" disabled>Ping</button>
+            <button onclick="showStatus()">Show Status</button>
+            <button onclick="authenticate()">Authenticate</button>
+        </div>
+    </div>
+    
+    <div>
+        <h3>Events Log</h3>
+        <div class="chat-container" id="eventsLog"></div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <!-- Include our socket client -->
+    <script src="laravel-socket-client.js"></script>
+    
+    <script>
+        let client = null;
+        
+        function connect() {
+            const url = document.getElementById('serverUrl').value;
+            
+            // Create client instance
+            client = new LaravelSocketClient({
+                url: url,
+                debug: true,
+                reconnect: true,
+                heartbeat: true
+            });
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Update UI
+            updateConnectionStatus('connecting', 'Connecting...');
+            document.getElementById('connectBtn').disabled = true;
+        }
+        
+        function disconnect() {
+            if (client) {
+                client.disconnect();
+                client = null;
+            }
+        }
+        
+        function setupEventListeners() {
+            // Connection events
+            client.on('connected', () => {
+                updateConnectionStatus('connected', 'Connected');
+                enableButtons();
+                logEvent('Connected to server', 'system');
+            });
+            
+            client.on('disconnected', (event) => {
+                updateConnectionStatus('disconnected', 'Disconnected');
+                disableButtons();
+                logEvent('Disconnected from server', 'system');
+            });
+            
+            client.on('authenticated', (data) => {
+                logEvent(`Authenticated as: ${JSON.stringify(data)}`, 'system');
+            });
+            
+            client.on('reconnecting', (attempt) => {
+                updateConnectionStatus('connecting', `Reconnecting... (${attempt})`);
+                logEvent(`Reconnection attempt ${attempt}`, 'system');
+            });
+            
+            // Message events
+            client.on('message', (message) => {
+                logEvent(`Received: ${JSON.stringify(message)}`, 'received');
+            });
+            
+            client.on('message_sent', (message) => {
+                logEvent(`Sent: ${JSON.stringify(message)}`, 'sent');
+            });
+            
+            // Chat events
+            client.on('chat.message.processed', (message) => {
+                addChatMessage(message.data, 'received');
+            });
+            
+            client.on('channel_joined', (data) => {
+                logEvent(`Joined channel: ${data.channel}`, 'system');
+                updateChannelsList();
+            });
+            
+            client.on('channel_left', (data) => {
+                logEvent(`Left channel: ${data.channel}`, 'system');
+                updateChannelsList();
+            });
+            
+            // Error handling
+            client.on('error', (error) => {
+                logEvent(`Error: ${JSON.stringify(error)}`, 'error');
+            });
+            
+            client.on('server_error', (error) => {
+                logEvent(`Server error: ${JSON.stringify(error)}`, 'error');
+            });
+            
+            client.on('pong', () => {
+                const status = client.getStatus();
+                logEvent(`Pong received (latency: ${status.latency}ms)`, 'system');
+            });
+        }
+        
+        function sendMessage() {
+            const roomId = document.getElementById('roomId').value;
+            const message = document.getElementById('messageInput').value;
+            
+            if (!message.trim()) return;
+            
+            // Use chat helper
+            client.chat.send(roomId, message);
+            
+            // Add to local chat
+            addChatMessage({
+                username: 'You',
+                message: message,
+                room_id: roomId
+            }, 'sent');
+            
+            document.getElementById('messageInput').value = '';
+        }
+        
+        function joinRoom() {
+            const roomId = document.getElementById('roomId').value;
+            client.chat.join(roomId);
+        }
+        
+        function joinChannel() {
+            const channel = document.getElementById('channelInput').value;
+            if (channel.trim()) {
+                client.join(channel);
+            }
+        }
+        
+        function leaveChannel() {
+            const channel = document.getElementById('channelInput').value;
+            if (channel.trim()) {
+                client.leave(channel);
+            }
+        }
+        
+        function ping() {
+            client.ping();
+        }
+        
+        function authenticate() {
+            // Simple demo token (in real app, get this from your Laravel API)
+            const demoToken = 'demo.jwt.token';
+            client.authenticate(demoToken);
+        }
+        
+        function showStatus() {
+            const status = client.getStatus();
+            alert(JSON.stringify(status, null, 2));
+        }
+        
+        function handleEnter(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        function addChatMessage(data, type) {
+            const container = document.getElementById('chatMessages');
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${type}`;
+            messageEl.innerHTML = `
+                <strong>${data.username || 'Unknown'}:</strong> ${data.message}
+                <br><small>${new Date().toLocaleTimeString()}</small>
+            `;
+            container.appendChild(messageEl);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function logEvent(message, type) {
+            const container = document.getElementById('eventsLog');
+            const eventEl = document.createElement('div');
+            eventEl.className = `message ${type}`;
+            eventEl.innerHTML = `
+                <span>${new Date().toLocaleTimeString()}</span> - ${message}
+            `;
+            container.appendChild(eventEl);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('eventsLog').innerHTML = '';
+            document.getElementById('chatMessages').innerHTML = '';
+        }
+        
+        function updateConnectionStatus(status, text) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = text;
+        }
+        
+        function updateChannelsList() {
+            if (!client) return;
+            
+            const channels = client.getChannels();
+            const container = document.getElementById('channelsList');
+            container.innerHTML = channels.map(channel => 
+                `<div style="padding: 2px; background: #e9ecef; margin: 2px; border-radius: 3px;">${channel}</div>`
+            ).join('');
+        }
+        
+        function enableButtons() {
+            document.getElementById('disconnectBtn').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('joinBtn').disabled = false;
+            document.getElementById('joinChannelBtn').disabled = false;
+            document.getElementById('leaveChannelBtn').disabled = false;
+            document.getElementById('pingBtn').disabled = false;
+        }
+        
+        function disableButtons() {
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('joinBtn').disabled = true;
+            document.getElementById('joinChannelBtn').disabled = true;
+            document.getElementById('leaveChannelBtn').disabled = true;
+            document.getElementById('pingBtn').disabled = true;
+        }
+        
+        // Initialize
+        updateConnectionStatus('disconnected', 'Disconnected');
+    </script>
+</body>
+</html>

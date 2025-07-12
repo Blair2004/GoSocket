@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket Test Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .messages { height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        .input-group { margin: 10px 0; }
+        .input-group input, .input-group button { margin: 5px; padding: 5px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .log { font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Socket Test Client</h1>
+        
+        <div id="status" class="status disconnected">Disconnected</div>
+        
+        <div class="input-group">
+            <input type="text" id="serverUrl" value="ws://localhost:8085/ws" placeholder="Server URL">
+            <button onclick="connect()">Connect</button>
+            <button onclick="disconnect()">Disconnect</button>
+        </div>
+        
+        <div class="input-group">
+            <input type="text" id="channel" value="test-channel" placeholder="Channel">
+            <button onclick="joinChannel()">Join Channel</button>
+            <button onclick="leaveChannel()">Leave Channel</button>
+        </div>
+        
+        <div class="input-group">
+            <input type="text" id="event" value="test-event" placeholder="Event">
+            <input type="text" id="messageData" value='{"message":"Hello World!"}' placeholder="Message Data (JSON)">
+            <button onclick="sendMessage()">Send Message</button>
+        </div>
+        
+        <div class="input-group">
+            <button onclick="sendPing()">Send Ping</button>
+            <button onclick="clearMessages()">Clear Messages</button>
+        </div>
+        
+        <div class="messages log" id="messages"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let connected = false;
+        
+        function log(message) {
+            const messages = document.getElementById('messages');
+            const timestamp = new Date().toLocaleTimeString();
+            messages.innerHTML += `[${timestamp}] ${message}\n`;
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
+        function updateStatus(status, isConnected) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = status;
+            statusElement.className = `status ${isConnected ? 'connected' : 'disconnected'}`;
+            connected = isConnected;
+        }
+        
+        function connect() {
+            const url = document.getElementById('serverUrl').value;
+            
+            if (ws) {
+                ws.close();
+            }
+            
+            log(`Connecting to ${url}...`);
+            
+            ws = new WebSocket(url);
+            
+            ws.onopen = function() {
+                log('✅ Connected to server');
+                updateStatus('Connected', true);
+            };
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                log(`📥 Received: ${JSON.stringify(message, null, 2)}`);
+            };
+            
+            ws.onclose = function() {
+                log('❌ Disconnected from server');
+                updateStatus('Disconnected', false);
+            };
+            
+            ws.onerror = function(error) {
+                log(`❌ Error: ${error}`);
+                updateStatus('Error', false);
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function joinChannel() {
+            if (!connected) {
+                alert('Not connected to server');
+                return;
+            }
+            
+            const channel = document.getElementById('channel').value;
+            const message = {
+                action: 'join_channel',
+                channel: channel
+            };
+            
+            log(`📤 Sending: ${JSON.stringify(message)}`);
+            ws.send(JSON.stringify(message));
+        }
+        
+        function leaveChannel() {
+            if (!connected) {
+                alert('Not connected to server');
+                return;
+            }
+            
+            const channel = document.getElementById('channel').value;
+            const message = {
+                action: 'leave_channel',
+                channel: channel
+            };
+            
+            log(`📤 Sending: ${JSON.stringify(message)}`);
+            ws.send(JSON.stringify(message));
+        }
+        
+        function sendMessage() {
+            if (!connected) {
+                alert('Not connected to server');
+                return;
+            }
+            
+            const channel = document.getElementById('channel').value;
+            const event = document.getElementById('event').value;
+            const dataStr = document.getElementById('messageData').value;
+            
+            let data;
+            try {
+                data = JSON.parse(dataStr);
+            } catch (e) {
+                alert('Invalid JSON in message data');
+                return;
+            }
+            
+            const message = {
+                action: 'send_message',
+                channel: channel,
+                event: event,
+                data: data
+            };
+            
+            log(`📤 Sending: ${JSON.stringify(message)}`);
+            ws.send(JSON.stringify(message));
+        }
+        
+        function sendPing() {
+            if (!connected) {
+                alert('Not connected to server');
+                return;
+            }
+            
+            const message = { action: 'ping' };
+            log(`📤 Sending: ${JSON.stringify(message)}`);
+            ws.send(JSON.stringify(message));
+        }
+        
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

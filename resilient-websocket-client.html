@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resilient WebSocket Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.connected { background: #d4edda; color: #155724; }
+        .status.connecting { background: #fff3cd; color: #856404; }
+        .status.disconnected { background: #f8d7da; color: #721c24; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .controls button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-connect { background: #28a745; color: white; }
+        .btn-disconnect { background: #dc3545; color: white; }
+        .btn-send { background: #007bff; color: white; }
+        .btn-clear { background: #6c757d; color: white; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #6c757d;
+        }
+        input[type="text"] {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Resilient WebSocket Client</h1>
+        <p>This client demonstrates automatic reconnection and error handling for WebSocket connections.</p>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="connectionCount">0</div>
+                <div class="stat-label">Total Connections</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="reconnectCount">0</div>
+                <div class="stat-label">Reconnect Attempts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="messageCount">0</div>
+                <div class="stat-label">Messages Sent</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="uptime">0s</div>
+                <div class="stat-label">Connected Time</div>
+            </div>
+        </div>
+        
+        <div id="status" class="status disconnected">Disconnected</div>
+        
+        <div class="controls">
+            <button id="connectBtn" class="btn-connect">Connect</button>
+            <button id="disconnectBtn" class="btn-disconnect">Disconnect</button>
+            <button id="sendTestBtn" class="btn-send">Send Test Message</button>
+            <button id="clearLogBtn" class="btn-clear">Clear Log</button>
+        </div>
+        
+        <div class="controls">
+            <input type="text" id="channelInput" placeholder="Channel name" value="general">
+            <input type="text" id="messageInput" placeholder="Message text" value="Hello from resilient client!">
+            <button id="sendCustomBtn" class="btn-send">Send Custom Message</button>
+        </div>
+        
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        class ResilientWebSocket {
+            constructor(url, options = {}) {
+                this.url = url;
+                this.options = {
+                    maxReconnectAttempts: 10,
+                    reconnectInterval: 1000,
+                    maxReconnectInterval: 30000,
+                    reconnectDecay: 1.5,
+                    heartbeatInterval: 30000,
+                    ...options
+                };
+                
+                this.ws = null;
+                this.reconnectAttempts = 0;
+                this.connectionCount = 0;
+                this.messageCount = 0;
+                this.connectedAt = null;
+                this.heartbeatTimer = null;
+                
+                this.onopen = null;
+                this.onmessage = null;
+                this.onclose = null;
+                this.onerror = null;
+                this.onstatuschange = null;
+                
+                this.messageQueue = [];
+                this.status = 'disconnected';
+            }
+
+            connect() {
+                this.setStatus('connecting');
+                this.log('🔄 Connecting to ' + this.url);
+                
+                try {
+                    this.ws = new WebSocket(this.url);
+                    
+                    this.ws.onopen = () => {
+                        this.connectionCount++;
+                        this.connectedAt = Date.now();
+                        this.reconnectAttempts = 0;
+                        this.setStatus('connected');
+                        this.log('✅ Connected to server');
+                        this.startHeartbeat();
+                        this.flushMessageQueue();
+                        this.onopen?.();
+                    };
+
+                    this.ws.onmessage = (event) => {
+                        const message = JSON.parse(event.data);
+                        this.log('📨 Received: ' + JSON.stringify(message));
+                        
+                        if (message.event === 'pong') {
+                            this.log('🏓 Pong received');
+                        }
+                        
+                        this.onmessage?.(event);
+                    };
+
+                    this.ws.onclose = (event) => {
+                        this.setStatus('disconnected');
+                        this.stopHeartbeat();
+                        
+                        let reason = 'Unknown';
+                        switch(event.code) {
+                            case 1000: reason = 'Normal closure'; break;
+                            case 1001: reason = 'Going away'; break;
+                            case 1002: reason = 'Protocol error'; break;
+                            case 1003: reason = 'Unsupported data'; break;
+                            case 1006: reason = 'Abnormal closure (network issue)'; break;
+                            case 1007: reason = 'Invalid data'; break;
+                            case 1008: reason = 'Policy violation'; break;
+                            case 1009: reason = 'Message too big'; break;
+                            case 1010: reason = 'Extension required'; break;
+                            case 1011: reason = 'Server error'; break;
+                            case 1015: reason = 'TLS handshake failure'; break;
+                        }
+                        
+                        this.log(`🔌 Disconnected: ${reason} (code: ${event.code})`);
+                        this.onclose?.(event);
+                        
+                        if (event.code !== 1000) { // Don't reconnect on normal closure
+                            this.handleReconnect();
+                        }
+                    };
+
+                    this.ws.onerror = (error) => {
+                        this.log('❌ WebSocket error: ' + error);
+                        this.setStatus('error');
+                        this.onerror?.(error);
+                    };
+                    
+                } catch (error) {
+                    this.log('❌ Failed to create WebSocket: ' + error);
+                    this.setStatus('error');
+                    this.handleReconnect();
+                }
+            }
+
+            handleReconnect() {
+                if (this.reconnectAttempts < this.options.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    const timeout = Math.min(
+                        this.options.reconnectInterval * Math.pow(this.options.reconnectDecay, this.reconnectAttempts),
+                        this.options.maxReconnectInterval
+                    );
+                    
+                    this.log(`🔄 Reconnecting in ${timeout}ms... (attempt ${this.reconnectAttempts}/${this.options.maxReconnectAttempts})`);
+                    
+                    setTimeout(() => this.connect(), timeout);
+                } else {
+                    this.log('❌ Max reconnection attempts reached');
+                    this.setStatus('error');
+                }
+            }
+
+            startHeartbeat() {
+                this.heartbeatTimer = setInterval(() => {
+                    this.ping();
+                }, this.options.heartbeatInterval);
+            }
+
+            stopHeartbeat() {
+                if (this.heartbeatTimer) {
+                    clearInterval(this.heartbeatTimer);
+                    this.heartbeatTimer = null;
+                }
+            }
+
+            ping() {
+                if (this.isConnected()) {
+                    this.send({ action: 'ping' });
+                    this.log('🏓 Ping sent');
+                }
+            }
+
+            send(data) {
+                if (this.isConnected()) {
+                    this.ws.send(JSON.stringify(data));
+                    this.messageCount++;
+                    this.log('📤 Sent: ' + JSON.stringify(data));
+                } else {
+                    this.messageQueue.push(data);
+                    this.log('📦 Message queued (not connected)');
+                }
+            }
+
+            flushMessageQueue() {
+                this.log(`📦 Flushing ${this.messageQueue.length} queued messages`);
+                while (this.messageQueue.length > 0) {
+                    const message = this.messageQueue.shift();
+                    this.send(message);
+                }
+            }
+
+            disconnect() {
+                this.stopHeartbeat();
+                if (this.ws) {
+                    this.ws.close(1000, 'Manual disconnect');
+                }
+            }
+
+            isConnected() {
+                return this.ws && this.ws.readyState === WebSocket.OPEN;
+            }
+
+            setStatus(status) {
+                this.status = status;
+                this.onstatuschange?.(status);
+            }
+
+            log(message) {
+                console.log(message);
+                // This will be called by the UI to display logs
+            }
+
+            getStats() {
+                return {
+                    connectionCount: this.connectionCount,
+                    reconnectCount: this.reconnectAttempts,
+                    messageCount: this.messageCount,
+                    uptime: this.connectedAt ? Math.floor((Date.now() - this.connectedAt) / 1000) : 0,
+                    status: this.status
+                };
+            }
+        }
+
+        // UI Management
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendTestBtn = document.getElementById('sendTestBtn');
+        const sendCustomBtn = document.getElementById('sendCustomBtn');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const channelInput = document.getElementById('channelInput');
+        const messageInput = document.getElementById('messageInput');
+        
+        let rws = null;
+
+        function updateLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function updateStatus(newStatus) {
+            status.className = `status ${newStatus}`;
+            status.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+            
+            connectBtn.disabled = newStatus === 'connected' || newStatus === 'connecting';
+            disconnectBtn.disabled = newStatus === 'disconnected';
+            sendTestBtn.disabled = newStatus !== 'connected';
+            sendCustomBtn.disabled = newStatus !== 'connected';
+        }
+
+        function updateStats() {
+            if (rws) {
+                const stats = rws.getStats();
+                document.getElementById('connectionCount').textContent = stats.connectionCount;
+                document.getElementById('reconnectCount').textContent = stats.reconnectCount;
+                document.getElementById('messageCount').textContent = stats.messageCount;
+                document.getElementById('uptime').textContent = stats.uptime + 's';
+            }
+        }
+
+        function connect() {
+            if (rws) {
+                rws.disconnect();
+            }
+            
+            rws = new ResilientWebSocket('ws://localhost:8080/ws');
+            
+            rws.log = updateLog;
+            rws.onstatuschange = updateStatus;
+            
+            rws.onopen = () => {
+                // Auto-join a channel
+                rws.send({
+                    action: 'join_channel',
+                    channel: 'general'
+                });
+            };
+            
+            rws.connect();
+        }
+
+        function disconnect() {
+            if (rws) {
+                rws.disconnect();
+            }
+        }
+
+        function sendTestMessage() {
+            if (rws) {
+                rws.send({
+                    action: 'send_message',
+                    channel: 'general',
+                    event: 'test_message',
+                    data: {
+                        text: 'This is a test message from the resilient client',
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            }
+        }
+
+        function sendCustomMessage() {
+            if (rws) {
+                const channel = channelInput.value || 'general';
+                const text = messageInput.value || 'Hello!';
+                
+                rws.send({
+                    action: 'send_message',
+                    channel: channel,
+                    event: 'custom_message',
+                    data: {
+                        text: text,
+                        timestamp: new Date().toISOString()
+                    }
+                });
+                
+                messageInput.value = '';
+            }
+        }
+
+        function clearLog() {
+            log.innerHTML = '';
+            updateLog('Log cleared');
+        }
+
+        // Event listeners
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        sendTestBtn.addEventListener('click', sendTestMessage);
+        sendCustomBtn.addEventListener('click', sendCustomMessage);
+        clearLogBtn.addEventListener('click', clearLog);
+
+        // Update stats every second
+        setInterval(updateStats, 1000);
+
+        // Initialize
+        updateStatus('disconnected');
+        updateLog('Ready to connect. Click Connect to start.');
+    </script>
+</body>
+</html>

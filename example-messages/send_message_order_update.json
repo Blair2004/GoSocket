@@ -1,0 +1,12 @@
+{
+  "action": "send_message",
+  "channel": "orders",
+  "event": "order_status_update",
+  "data": {
+    "order_id": "ORD-2025-001",
+    "status": "completed",
+    "total_amount": 125.50,
+    "customer_name": "John Doe",
+    "timestamp": "2025-07-11T10:30:00Z"
+  }
+}

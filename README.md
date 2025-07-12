@@ -24,15 +24,29 @@ chmod +x build.sh
 ./build.sh
 ```
 
+Go must be available globally. You might need to export it if it's not yet the case:
+
+```bash
+export PATH=/usr/local/go/bin:$PATH
+```
+
 ### 2. Start the Server
 
 ```bash
-# Set environment variables (optional)
+# Using command-line options
+./bin/socket-server --port 8080 --token "your-secret-key" --dir /path/to/laravel --php /usr/bin/php8.2 --command "ns:socket-handler"
+
+# Or using environment variables (optional)
 export SOCKET_PORT=8080
 export JWT_SECRET="your-secret-key"
-
-# Start the server
+export LARAVEL_PATH="/path/to/laravel"
+export PHP_BINARY="/usr/bin/php8.2"
+export LARAVEL_COMMAND="ns:socket-handler"
 ./bin/socket-server
+
+# Or mix both (command-line flags take precedence)
+export JWT_SECRET="fallback-secret"
+./bin/socket-server --port 9000 --dir /var/www/laravel --command "custom:socket-handler"
 ```
 
 ### 3. Test with CLI
@@ -116,10 +130,34 @@ event(new OrderCreated($order));
 
 ## Configuration
 
+### Command-Line Options
+
+```bash
+# View all available options
+./bin/socket-server --help
+
+# Start with custom configuration
+./bin/socket-server --port 9000 --token "my-secret-key" --dir /var/www/laravel --php /usr/bin/php8.2 --command "ns:socket-handler"
+
+# Short form flags (where available)
+./bin/socket-server -p 9000 -t "my-secret-key" -d /var/www/laravel
+```
+
+Available flags:
+- `--port, -p`: Server port (default: 8080 or SOCKET_PORT env var)
+- `--token, -t`: JWT secret for authentication (default: JWT_SECRET env var)
+- `--dir, -d`: Working directory for Laravel commands (default: LARAVEL_PATH env var or current directory)
+- `--php`: PHP binary path (default: 'php' or PHP_BINARY env var)
+- `--command`: Laravel artisan command to execute (default: 'ns:socket-handler' or LARAVEL_COMMAND env var)
+
 ### Environment Variables
 
 - `SOCKET_PORT`: Server port (default: 8080)
 - `JWT_SECRET`: JWT signing secret
+- `LARAVEL_PATH`: Working directory for Laravel commands
+- `PHP_BINARY`: PHP binary path (default: 'php')
+- `LARAVEL_COMMAND`: Laravel artisan command to execute (default: 'ns:socket-handler')
+- `SOCKET_TEMP_DIR`: Temporary directory for payload files (default: system temp/socket-server-payloads)
 - `SOCKET_BINARY_PATH`: Path to socket CLI binary
 - `SOCKET_SERVER_URL`: Socket server URL for CLI
 
@@ -132,6 +170,9 @@ SOCKET_BINARY_PATH=/path/to/socket
 SOCKET_SERVER_URL=http://localhost:8080
 SOCKET_JWT_SECRET=your-jwt-secret
 SOCKET_DEBUG=false
+LARAVEL_PATH=/var/www/laravel
+PHP_BINARY=/usr/bin/php8.2
+LARAVEL_COMMAND=ns:socket-handler
 ```
 
 ## API Endpoints
@@ -379,6 +420,18 @@ $connector->connect('tcp://localhost:8080')
 
 ## Troubleshooting
 
+### Connection Issues
+
+If you encounter WebSocket disconnection errors (like error code 1006), see the comprehensive troubleshooting guide:
+
+```bash
+# View troubleshooting guide
+cat WEBSOCKET_TROUBLESHOOTING.md
+
+# Test with resilient client
+open resilient-websocket-client.html
+```
+
 ### Common Issues
 
 #### Server Won't Start
@@ -410,6 +463,16 @@ curl -I http://localhost:8080/ws
 # Check CORS settings
 curl -H "Origin: http://localhost:3000" http://localhost:8080/api/health
 ```
+
+### Connection Improvements
+
+The server now includes several improvements for handling unstable connections:
+
+- **Automatic ping/pong**: Keeps connections alive and detects dead connections
+- **Connection timeouts**: Prevents hanging connections
+- **Better error classification**: Distinguishes between normal, abnormal, and unexpected disconnections
+- **Graceful error handling**: Proper cleanup and resource management
+- **Detailed logging**: Better visibility into connection issues
 
 ### Debug Mode
 
