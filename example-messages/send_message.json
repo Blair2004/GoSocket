@@ -1,9 +1,0 @@
-{
-  "action": "send_message",
-  "channel": "general",
-  "event": "message",
-  "data": {
-    "text": "Hello everyone!",
-    "message_type": "text"
-  }
-}
