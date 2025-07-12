@@ -52,7 +52,7 @@ func (s *LaravelService) InitializeTempDirectory() error {
 
 // DispatchMessage sends a client message to Laravel for processing
 func (s *LaravelService) DispatchMessage(message models.Message, client *models.Client) error {
-	payloadFile, err := s.createTempPayloadFile(message, client, "ClientMessageReceived")
+	payloadFile, err := s.createTempPayloadFile(message, client)
 	if err != nil {
 		return fmt.Errorf("error creating temp payload file: %w", err)
 	}
@@ -67,13 +67,13 @@ func (s *LaravelService) DispatchAuthentication(client *models.Client, status st
 		"message_id": uuid.New().String(),
 		"timestamp":  time.Now().Format(time.RFC3339),
 		"action":     "client_authentication",
-		"client": map[string]interface{}{
-			"id":       client.ID,
-			"type":     "websocket",
-			"version":  "1.0.0",
-			"user_id":  client.UserID,
-			"username": client.Username,
-			"email":    client.Email,
+		"auth": map[string]interface{}{
+			"user_id":     client.UserID,
+			"user_email":  client.Email,
+			"logged_at":   time.Now().Format(time.RFC3339),
+			"id":          client.ID,
+			"username":    client.Username,
+			"remote_addr": client.RemoteAddr,
 		},
 		"data": map[string]interface{}{
 			"authentication_status": status,
@@ -90,22 +90,19 @@ func (s *LaravelService) DispatchAuthentication(client *models.Client, status st
 }
 
 // createTempPayloadFile creates a temporary file with message data
-func (s *LaravelService) createTempPayloadFile(message models.Message, client *models.Client, eventType string) (string, error) {
+func (s *LaravelService) createTempPayloadFile(message models.Message, client *models.Client) (string, error) {
 	// Create standardized message payload
 	standardizedPayload := map[string]interface{}{
 		"message_id": uuid.New().String(),
 		"timestamp":  time.Now().Format(time.RFC3339),
-		"action":     eventType,
-		"client": map[string]interface{}{
-			"id":          client.ID,
+		"action":     message.Event,
+		"auth": map[string]interface{}{
 			"user_id":     client.UserID,
+			"user_email":  client.Email,
+			"logged_at":   time.Now().Format(time.RFC3339),
+			"id":          client.ID,
 			"username":    client.Username,
 			"remote_addr": client.RemoteAddr,
-		},
-		"auth": map[string]interface{}{
-			"user_id":    client.UserID,
-			"user_email": client.Email,
-			"logged_at":  time.Now().Format(time.RFC3339),
 		},
 		"data": map[string]interface{}{
 			"id":        message.ID,

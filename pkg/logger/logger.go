@@ -69,12 +69,12 @@ func (l *Logger) ClientAuthenticationFailed(clientID string, err error) {
 
 // MessageReceived logs an incoming message
 func (l *Logger) MessageReceived(clientID, username, action string, data interface{}) {
-	l.Info("📥 INCOMING MESSAGE from client %s (user: %s): action=%s, data=%v", clientID, username, action, data)
+	l.Info("📥 INCOMING MESSAGE from client %s (user: %s): action=%s", clientID, username, action)
 }
 
 // MessageSent logs an outgoing message
 func (l *Logger) MessageSent(clientID, username, channel, event string, data interface{}) {
-	l.Info("📤 MESSAGE SENT by client %s (%s) to channel '%s': event=%s, data=%v", clientID, username, channel, event, data)
+	l.Info("📤 MESSAGE SENT by client %s (%s) to channel '%s': event=%s", clientID, username, channel, event)
 }
 
 // ChannelJoined logs a channel join

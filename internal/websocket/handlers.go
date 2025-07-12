@@ -48,9 +48,35 @@ func (s *Server) handleClientMessages(client *models.Client, done chan bool) {
 		case "ping":
 			s.handlePing(client)
 		default:
-			s.logger.Warn("Unknown action '%s' from client %s", actionStr, client.ID)
+			s.handleMessage(client, msg)
 		}
 	}
+}
+
+func (s *Server) handleMessage(client *models.Client, msg map[string]interface{}) {
+	// Forward unsupported messages to Laravel
+	s.logger.Debug("Forwarding unsupported message to Laravel from client %s", client.ID)
+
+	// Convert raw message to models.Message
+	message := models.Message{
+		ID:        uuid.New().String(),
+		Event:     getStringFromMap(msg, "action", "unknown"),
+		Channel:   getStringFromMap(msg, "channel", ""),
+		Data:      msg,
+		UserID:    client.UserID,
+		Username:  client.Username,
+		Timestamp: time.Now(),
+	}
+
+	s.laravelSvc.DispatchMessage(message, client)
+}
+
+// getStringFromMap safely extracts a string value from a map
+func getStringFromMap(m map[string]interface{}, key string, defaultValue string) string {
+	if value, ok := m[key].(string); ok {
+		return value
+	}
+	return defaultValue
 }
 
 // handleClientPing manages ping/pong for connection health
