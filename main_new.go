@@ -18,12 +18,12 @@ import (
 )
 
 var (
-	port         string
-	jwtSecret    string
-	workingDir   string
-	phpBinary    string
-	laravelCmd   string
-	tempDir      string
+	port       string
+	jwtSecret  string
+	workingDir string
+	phpBinary  string
+	laravelCmd string
+	tempDir    string
 )
 
 var rootCmd = &cobra.Command{
@@ -59,7 +59,7 @@ func runServer(cmd *cobra.Command, args []string) {
 
 	// Display configuration
 	logger.Info("Starting Socket Server on port %s", cfg.Port)
-	
+
 	// Safely display JWT secret (first few characters)
 	secretDisplay := cfg.JWTSecret
 	if len(secretDisplay) > 10 {
@@ -67,7 +67,7 @@ func runServer(cmd *cobra.Command, args []string) {
 	} else if len(secretDisplay) > 3 {
 		secretDisplay = secretDisplay[:3] + "..."
 	}
-	
+
 	logger.Info("JWT Secret: %s", secretDisplay)
 	logger.Info("Working Directory: %s", cfg.WorkingDir)
 	logger.Info("PHP Binary: %s", cfg.PHPBinary)
