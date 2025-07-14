@@ -14,6 +14,7 @@ A high-performance standalone socket server with Laravel integration, built as a
 - **JWT Authentication**: Secure user sessions
 - **Rate Limiting**: Protection against abuse
 - **RESTful API**: HTTP endpoints for management
+- **HTTP API Security**: Token-based authentication for REST endpoints
 
 ## Quick Start
 
@@ -33,12 +34,13 @@ export PATH=/usr/local/go/bin:$PATH
 ### 2. Start the Server
 
 ```bash
-# Using command-line options
-./bin/socket-server --port 8080 --token "your-secret-key" --dir /path/to/laravel --php /usr/bin/php8.2 --command "ns:socket-handler"
+# Using command-line options (HTTP token is required)
+./bin/socket-server --port 8080 --token "your-jwt-secret" --http-token "your-api-token" --dir /path/to/laravel --php /usr/bin/php8.2 --command "ns:socket-handler"
 
 # Or using environment variables (optional)
 export SOCKET_PORT=8080
-export JWT_SECRET="your-secret-key"
+export JWT_SECRET="your-jwt-secret"
+export HTTP_TOKEN="your-api-token"
 export LARAVEL_PATH="/path/to/laravel"
 export PHP_BINARY="/usr/bin/php8.2"
 export LARAVEL_COMMAND="ns:socket-handler"
@@ -46,7 +48,13 @@ export LARAVEL_COMMAND="ns:socket-handler"
 
 # Or mix both (command-line flags take precedence)
 export JWT_SECRET="fallback-secret"
+export HTTP_TOKEN="fallback-api-token"
 ./bin/socket-server --port 9000 --dir /var/www/laravel --command "custom:socket-handler"
+```
+
+**Security Note**: The `--http-token` parameter is required for HTTP API security. Generate a secure token:
+```bash
+export HTTP_TOKEN="$(openssl rand -hex 32)"
 ```
 
 ### 3. Test with CLI
@@ -283,13 +291,19 @@ LARAVEL_COMMAND=ns:socket-handler
 
 ## CLI Usage
 
+**Note**: All CLI commands now require an HTTP API token for authentication.
+
 ### Send Messages
 
 ```bash
-# Send from JSON file
-./bin/socket send --file /path/to/message.json
+# Send from JSON file (with authentication)
+./bin/socket --token "your-api-token" send --file /path/to/message.json
 
-# Send with flags
+# Send with flags (with authentication)
+./bin/socket --token "your-api-token" send --channel "notifications" --event "alert" --data '{"message":"Server maintenance"}'
+
+# Using environment variable for token
+export HTTP_TOKEN="your-api-token"
 ./bin/socket send --channel "notifications" --event "alert" --data '{"message":"Server maintenance"}'
 ```
 
@@ -297,15 +311,20 @@ LARAVEL_COMMAND=ns:socket-handler
 
 ```bash
 # List all clients
-./bin/socket list clients
+./bin/socket --token "your-api-token" list clients
 
 # List all channels
-./bin/socket list channels
+./bin/socket --token "your-api-token" list channels
 
 # Kick a client
-./bin/socket kick client-id
+./bin/socket --token "your-api-token" kick client-id
 
 # Check server health
+./bin/socket --token "your-api-token" health
+
+# Using environment variable for all commands
+export HTTP_TOKEN="your-api-token"
+./bin/socket list clients
 ./bin/socket health
 ```
 
@@ -314,6 +333,25 @@ LARAVEL_COMMAND=ns:socket-handler
 ```bash
 ./bin/socket --server http://localhost:9000 send --channel test --data '{"test":true}'
 ```
+
+### 🔐 TLS Certificate Verification Bypass
+
+For development environments or when using self-signed certificates, you can bypass TLS certificate verification:
+
+```bash
+# Skip certificate verification for HTTPS endpoints
+./bin/socket --server https://localhost:8443 --insecure health
+
+# This is equivalent to curl -k
+./bin/socket --server https://self-signed.example.com --insecure send --channel test --data '{"test":true}'
+
+# Useful for:
+# - Development with self-signed certificates
+# - Testing environments
+# - Internal networks with custom CAs
+```
+
+**⚠️ Security Warning**: Only use `--insecure` in development environments. Never use this in production as it disables certificate validation and makes connections vulnerable to man-in-the-middle attacks.
 
 ## Client Examples
 
@@ -498,4 +536,5 @@ MIT License - see LICENSE file for details.
 
 - GitHub Issues: Report bugs and feature requests
 - Documentation: See the `/docs` directory
+  - [HTTP API Security](docs/HTTP_API_SECURITY.md) - Authentication setup and usage
 - Examples: Check the `/examples` directory

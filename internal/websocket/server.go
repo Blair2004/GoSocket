@@ -92,14 +92,11 @@ func (s *Server) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	go s.handleClientMessages(client, done)
 	go s.handleClientPing(client, pingTicker, done)
 
-	// Handle client disconnection
-	defer func() {
-		s.disconnectClient(client)
-		conn.Close()
-	}()
-
 	// Wait for either handler to finish
 	<-done
+
+	// Handle client disconnection - this happens after goroutines finish
+	s.disconnectClient(client)
 }
 
 // GetClients returns all connected clients
@@ -161,7 +158,7 @@ func (s *Server) KickClient(clientID string) error {
 	client.SendMessage(kickMessage)
 
 	// Close connection
-	client.Conn.Close()
+	client.Close()
 
 	return nil
 }

@@ -12,18 +12,20 @@ import (
 	"socket-server/internal/auth"
 	"socket-server/internal/config"
 	"socket-server/internal/handlers"
+	"socket-server/internal/middleware"
 	"socket-server/internal/services"
 	"socket-server/internal/websocket"
 	"socket-server/pkg/logger"
 )
 
 var (
-	port         string
-	jwtSecret    string
-	workingDir   string
-	phpBinary    string
-	laravelCmd   string
-	tempDir      string
+	port       string
+	jwtSecret  string
+	httpToken  string
+	workingDir string
+	phpBinary  string
+	laravelCmd string
+	tempDir    string
 )
 
 var rootCmd = &cobra.Command{
@@ -38,6 +40,7 @@ client management, and Laravel event integration.`,
 func init() {
 	rootCmd.Flags().StringVarP(&port, "port", "p", "", "Port to run the server on (default: 8080 or SOCKET_PORT env var)")
 	rootCmd.Flags().StringVarP(&jwtSecret, "token", "t", "", "JWT secret for authentication (default: JWT_SECRET env var)")
+	rootCmd.Flags().StringVar(&httpToken, "http-token", "", "HTTP API authentication token (required for API access)")
 	rootCmd.Flags().StringVarP(&workingDir, "dir", "d", "", "Working directory for Laravel commands (default: LARAVEL_PATH env var)")
 	rootCmd.Flags().StringVar(&phpBinary, "php", "", "PHP binary path (default: 'php' or PHP_BINARY env var)")
 	rootCmd.Flags().StringVar(&laravelCmd, "command", "", "Laravel artisan command to execute (default: 'ns:socket-handler' or LARAVEL_COMMAND env var)")
@@ -47,7 +50,7 @@ func init() {
 func runServer(cmd *cobra.Command, args []string) {
 	// Load configuration
 	cfg := config.New()
-	cfg.LoadFromFlags(port, jwtSecret, workingDir, phpBinary, laravelCmd, tempDir)
+	cfg.LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary, laravelCmd, tempDir)
 
 	// Validate configuration
 	if err := cfg.Validate(); err != nil {
@@ -59,7 +62,7 @@ func runServer(cmd *cobra.Command, args []string) {
 
 	// Display configuration
 	logger.Info("Starting Socket Server on port %s", cfg.Port)
-	
+
 	// Safely display JWT secret (first few characters)
 	secretDisplay := cfg.JWTSecret
 	if len(secretDisplay) > 10 {
@@ -67,8 +70,17 @@ func runServer(cmd *cobra.Command, args []string) {
 	} else if len(secretDisplay) > 3 {
 		secretDisplay = secretDisplay[:3] + "..."
 	}
-	
+
+	// Safely display HTTP token (first few characters)
+	tokenDisplay := cfg.HTTPToken
+	if len(tokenDisplay) > 10 {
+		tokenDisplay = tokenDisplay[:10] + "..."
+	} else if len(tokenDisplay) > 3 {
+		tokenDisplay = tokenDisplay[:3] + "..."
+	}
+
 	logger.Info("JWT Secret: %s", secretDisplay)
+	logger.Info("HTTP API Token: %s", tokenDisplay)
 	logger.Info("Working Directory: %s", cfg.WorkingDir)
 	logger.Info("PHP Binary: %s", cfg.PHPBinary)
 	logger.Info("Laravel Command: %s", cfg.LaravelCmd)
@@ -90,22 +102,25 @@ func runServer(cmd *cobra.Command, args []string) {
 	// Initialize HTTP handlers
 	httpHandlers := handlers.New(wsServer, logger)
 
+	// Initialize HTTP authentication middleware
+	httpAuth := middleware.NewHTTPAuth(cfg.HTTPToken, logger)
+
 	// Setup routes
 	r := mux.NewRouter()
 
-	// WebSocket endpoint
+	// WebSocket endpoint (no authentication required for WebSocket - handled internally)
 	r.HandleFunc("/ws", wsServer.HandleConnection)
 
-	// REST API endpoints
+	// REST API endpoints (all require authentication)
 	api := r.PathPrefix("/api").Subrouter()
-	api.HandleFunc("/health", httpHandlers.Health).Methods("GET")
-	api.HandleFunc("/clients", httpHandlers.GetClients).Methods("GET")
-	api.HandleFunc("/channels", httpHandlers.GetChannels).Methods("GET")
-	api.HandleFunc("/channels/{channel}/clients", httpHandlers.GetChannelClients).Methods("GET")
-	api.HandleFunc("/clients/{client}/kick", httpHandlers.KickClient).Methods("POST")
-	api.HandleFunc("/broadcast", httpHandlers.Broadcast).Methods("POST")
+	api.HandleFunc("/health", httpAuth.AuthenticateFunc(httpHandlers.Health)).Methods("GET")
+	api.HandleFunc("/clients", httpAuth.AuthenticateFunc(httpHandlers.GetClients)).Methods("GET")
+	api.HandleFunc("/channels", httpAuth.AuthenticateFunc(httpHandlers.GetChannels)).Methods("GET")
+	api.HandleFunc("/channels/{channel}/clients", httpAuth.AuthenticateFunc(httpHandlers.GetChannelClients)).Methods("GET")
+	api.HandleFunc("/clients/{client}/kick", httpAuth.AuthenticateFunc(httpHandlers.KickClient)).Methods("POST")
+	api.HandleFunc("/broadcast", httpAuth.AuthenticateFunc(httpHandlers.Broadcast)).Methods("POST")
 
-	// Static file serving for admin interface
+	// Static file serving for admin interface (no authentication required)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
 
 	// Start server

@@ -80,6 +80,30 @@ func (c *Client) SendMessage(message Message) error {
 	return c.Conn.WriteJSON(message)
 }
 
+// SafeReadJSON safely reads a JSON message from the client connection
+func (c *Client) SafeReadJSON(v interface{}) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.Conn == nil {
+		return ErrNilConnection
+	}
+
+	return c.Conn.ReadJSON(v)
+}
+
+// SafeSetReadDeadline safely sets the read deadline on the client connection
+func (c *Client) SafeSetReadDeadline(t time.Time) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.Conn == nil {
+		return ErrNilConnection
+	}
+
+	return c.Conn.SetReadDeadline(t)
+}
+
 // AddToChannel adds the client to a channel
 func (c *Client) AddToChannel(channelName string) {
 	c.mutex.Lock()
@@ -113,6 +137,23 @@ func (c *Client) SetUserInfo(userID, username, email string) {
 	c.UserID = userID
 	c.Username = username
 	c.Email = email
+}
+
+// Close safely closes the client connection
+func (c *Client) Close() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if c.Conn != nil {
+		c.Conn.Close()
+		c.Conn = nil
+	}
+}
+
+// IsConnected safely checks if the client connection is still valid
+func (c *Client) IsConnected() bool {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.Conn != nil
 }
 
 // SendPing sends a ping message to the client

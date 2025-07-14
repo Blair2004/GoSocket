@@ -17,14 +17,21 @@ func (s *Server) handleClientMessages(client *models.Client, done chan bool) {
 
 	for {
 		var msg map[string]interface{}
-		err := client.Conn.ReadJSON(&msg)
+		err := client.SafeReadJSON(&msg)
 		if err != nil {
-			s.logger.WebSocketError(client.ID, err)
+			if err == models.ErrNilConnection {
+				s.logger.Debug("Client %s connection became nil during message read", client.ID)
+			} else {
+				s.logger.WebSocketError(client.ID, err)
+			}
 			break
 		}
 
 		// Reset read deadline on successful message
-		client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		if err := client.SafeSetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+			s.logger.Debug("Client %s failed to set read deadline: %v", client.ID, err)
+			break
+		}
 		client.LastSeen = time.Now()
 
 		// Log incoming message
@@ -87,10 +94,31 @@ func (s *Server) handleClientPing(client *models.Client, pingTicker *time.Ticker
 	}()
 
 	for range pingTicker.C {
+		// Check if client connection is still valid before sending ping
+		if !client.IsConnected() {
+			s.logger.Debug("Client %s connection is no longer valid, stopping ping handler", client.ID)
+			return
+		}
+
+		// Check if client is still registered in server
+		s.mutex.RLock()
+		_, exists := s.clients[client.ID]
+		s.mutex.RUnlock()
+
+		if !exists {
+			s.logger.Debug("Client %s no longer registered, stopping ping handler", client.ID)
+			return
+		}
+
 		// Send ping to client
 		err := client.SendPing()
 		if err != nil {
-			s.logger.Error("Failed to send ping to client %s: %v", client.ID, err)
+			// Log different error types for better debugging
+			if err == models.ErrNilConnection {
+				s.logger.Debug("Client %s connection became nil during ping", client.ID)
+			} else {
+				s.logger.Error("Failed to send ping to client %s: %v", client.ID, err)
+			}
 			return
 		}
 		s.logger.PingSent(client.ID)
@@ -247,6 +275,7 @@ func (s *Server) handlePing(client *models.Client) {
 func (s *Server) disconnectClient(client *models.Client) {
 	s.logger.ClientDisconnected(client.ID, client.Username, client.RemoteAddr)
 
+	// Remove client from server's client list
 	s.mutex.Lock()
 	delete(s.clients, client.ID)
 	s.mutex.Unlock()
@@ -258,6 +287,9 @@ func (s *Server) disconnectClient(client *models.Client) {
 			channel.RemoveClient(client.ID)
 		}
 	}
+
+	// Safely close the client connection
+	client.Close()
 }
 
 // getOrCreateChannel gets an existing channel or creates a new one

@@ -1,1 +1,5 @@
 bin
+node_modules
+package
+go.sum
+go.mod

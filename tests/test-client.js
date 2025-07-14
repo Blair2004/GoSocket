@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 
-const ws = new WebSocket('ws://localhost:8085/ws');
+const ws = new WebSocket('ws://localhost:8082/ws');
 
 ws.on('open', function open() {
     console.log('✅ Connected to server');
@@ -34,7 +34,7 @@ ws.on('open', function open() {
                 console.log('🔴 Closing connection');
                 ws.close();
             }, 1000);
-        }, 1000);
+        }, 20000 );
     }, 1000);
 });
 

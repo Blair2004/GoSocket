@@ -1,7 +1,0 @@
-Starting Socket Server on port 8085
-JWT Secret: Tes...
-Working Directory: .
-PHP Binary: php
-Laravel Command: ns:socket-handler
-2025/07/10 22:31:33 Socket server starting on port 8085
-2025/07/10 22:31:33 listen tcp :8085: bind: address already in use

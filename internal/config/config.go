@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Port       string
 	JWTSecret  string
+	HTTPToken  string
 	WorkingDir string
 	PHPBinary  string
 	LaravelCmd string
@@ -21,6 +22,7 @@ func New() *Config {
 	return &Config{
 		Port:       getEnv("SOCKET_PORT", "8080"),
 		JWTSecret:  getEnv("JWT_SECRET", "default-secret-key-change-in-production"),
+		HTTPToken:  getEnv("HTTP_TOKEN", ""),
 		WorkingDir: getEnv("LARAVEL_PATH", "."),
 		PHPBinary:  getEnv("PHP_BINARY", "php"),
 		LaravelCmd: getEnv("LARAVEL_COMMAND", "ns:socket-handler"),
@@ -30,12 +32,15 @@ func New() *Config {
 }
 
 // LoadFromFlags updates configuration from command line flags
-func (c *Config) LoadFromFlags(port, jwtSecret, workingDir, phpBinary, laravelCmd, tempDir string) {
+func (c *Config) LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary, laravelCmd, tempDir string) {
 	if port != "" {
 		c.Port = port
 	}
 	if jwtSecret != "" {
 		c.JWTSecret = jwtSecret
+	}
+	if httpToken != "" {
+		c.HTTPToken = httpToken
 	}
 	if workingDir != "" {
 		c.WorkingDir = workingDir
@@ -58,6 +63,9 @@ func (c *Config) Validate() error {
 	}
 	if c.JWTSecret == "" {
 		return ErrEmptyJWTSecret
+	}
+	if c.HTTPToken == "" {
+		return ErrEmptyHTTPToken
 	}
 	return nil
 }
