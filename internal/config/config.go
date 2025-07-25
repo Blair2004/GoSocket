@@ -25,7 +25,7 @@ func New() *Config {
 		HTTPToken:  getEnv("HTTP_TOKEN", ""),
 		WorkingDir: getEnv("LARAVEL_PATH", "."),
 		PHPBinary:  getEnv("PHP_BINARY", "php"),
-		LaravelCmd: getEnv("LARAVEL_COMMAND", "ns:socket-handler"),
+		LaravelCmd: getEnv("LARAVEL_COMMAND", "socket:handle"),
 		TempDir:    getEnv("SOCKET_TEMP_DIR", filepath.Join(os.TempDir(), "socket-server-payloads")),
 		Debug:      getEnv("SOCKET_DEBUG", "false") == "true",
 	}

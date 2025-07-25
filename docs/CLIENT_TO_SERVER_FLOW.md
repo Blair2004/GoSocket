@@ -48,14 +48,14 @@ func (s *Server) handleSendMessage(client *Client, msg map[string]interface{}) {
 
 ```bash
 # Go server executes (customizable command):
-php artisan ns:socket-handler --json '{"event_type":"ClientMessageReceived","socket_client":{"id":"client-123","user_id":"456","username":"john","remote_addr":"127.0.0.1"},"message":{"id":"msg-789","channel":"chat.room.1","event":"chat_message","data":{"message":"Hello everyone!","room_id":1,"message_type":"text"},"timestamp":"2025-01-01T00:00:00Z"}}'
+php artisan socket:handle --json '{"event_type":"ClientMessageReceived","socket_client":{"id":"client-123","user_id":"456","username":"john","remote_addr":"127.0.0.1"},"message":{"id":"msg-789","channel":"chat.room.1","event":"chat_message","data":{"message":"Hello everyone!","room_id":1,"message_type":"text"},"timestamp":"2025-01-01T00:00:00Z"}}'
 ```
 
 ```php
 // App\Console\Commands\SocketHandler
 class SocketHandler extends Command
 {
-    protected $signature = 'ns:socket-handler {--json=}';
+    protected $signature = 'socket:handle {--json=}';
     protected $description = 'Handle socket events from the Go server';
 
     public function handle()
@@ -231,19 +231,19 @@ ws.send(JSON.stringify({
 # In your .env
 LARAVEL_PATH=/path/to/your/laravel/project
 PHP_BINARY=/usr/bin/php8.2
-LARAVEL_COMMAND=ns:socket-handler
+LARAVEL_COMMAND=socket:handle
 SOCKET_PORT=8080
 ```
 
 ### Command-Line Options
 ```bash
 # Start server with custom configuration
-./bin/socket-server --port 8080 --dir /var/www/laravel --php /usr/bin/php8.2 --command "ns:socket-handler"
+./bin/socket-server --port 8080 --dir /var/www/laravel --php /usr/bin/php8.2 --command "socket:handle"
 
 # Or use environment variables
 export LARAVEL_PATH=/var/www/laravel
 export PHP_BINARY=/usr/bin/php8.2
-export LARAVEL_COMMAND=ns:socket-handler
+export LARAVEL_COMMAND=socket:handle
 ./bin/socket-server
 ```
 

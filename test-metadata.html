@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Per-Channel Metadata Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            opacity: 0.8;
+        }
+        .connect { background: #4CAF50; color: white; }
+        .disconnect { background: #f44336; color: white; }
+        .join { background: #2196F3; color: white; }
+        .leave { background: #FF9800; color: white; }
+        .clear { background: #9E9E9E; color: white; }
+        
+        #output {
+            background: #1e1e1e;
+            color: #e0e0e0;
+            padding: 15px;
+            border-radius: 4px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .input-group {
+            margin-bottom: 10px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .input-group input, .input-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .input-group textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        
+        .metadata-examples {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        
+        .metadata-examples h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        
+        .example-btn {
+            background: #e0e0e0;
+            color: #333;
+            margin: 2px;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .status.connected { background: #d4edda; color: #155724; }
+        .status.disconnected { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Per-Channel Metadata Test Client</h1>
+        
+        <div class="status disconnected" id="connectionStatus">
+            Disconnected
+        </div>
+        
+        <div class="controls">
+            <button class="connect" onclick="connect()">Connect</button>
+            <button class="disconnect" onclick="disconnect()">Disconnect</button>
+            <button class="clear" onclick="clearOutput()">Clear Log</button>
+        </div>
+        
+        <div class="input-group">
+            <label for="channelName">Channel Name:</label>
+            <input type="text" id="channelName" value="test-channel" placeholder="Enter channel name">
+        </div>
+        
+        <div class="input-group">
+            <label for="metadata">Metadata (JSON):</label>
+            <textarea id="metadata" placeholder="Enter JSON metadata (optional)">{"user_type": "premium", "joined_from": "web", "session_id": "test123"}</textarea>
+            
+            <div class="metadata-examples">
+                <h4>Example Metadata:</h4>
+                <button class="example-btn" onclick="setExampleMetadata('user')">User Info</button>
+                <button class="example-btn" onclick="setExampleMetadata('session')">Session Data</button>
+                <button class="example-btn" onclick="setExampleMetadata('preferences')">Preferences</button>
+                <button class="example-btn" onclick="setExampleMetadata('complex')">Complex Data</button>
+                <button class="example-btn" onclick="setExampleMetadata('clear')">Clear</button>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="join" onclick="joinChannel()">Join Channel</button>
+            <button class="leave" onclick="leaveChannel()">Leave Channel</button>
+        </div>
+        
+        <div class="controls">
+            <button class="join" onclick="joinChannelNoMetadata()">Join Without Metadata</button>
+            <button class="join" onclick="joinMultipleChannels()">Join Multiple Channels</button>
+            <button class="leave" onclick="leaveAllChannels()">Leave All Channels</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Server Response Log</h2>
+        <div id="output"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+        let joinedChannels = new Set();
+
+        function log(message) {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent += `[${timestamp}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusEl = document.getElementById('connectionStatus');
+            isConnected = connected;
+            
+            if (connected) {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'status connected';
+            } else {
+                statusEl.textContent = 'Disconnected';
+                statusEl.className = 'status disconnected';
+                joinedChannels.clear();
+            }
+        }
+
+        function connect() {
+            if (ws) {
+                ws.close();
+            }
+
+            ws = new WebSocket('ws://localhost:8080/ws');
+
+            ws.onopen = function() {
+                log('Connected to WebSocket server');
+                updateStatus(true);
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    log(`Received: ${JSON.stringify(message, null, 2)}`);
+                    
+                    // Track joined channels
+                    if (message.event === 'joined_channel') {
+                        joinedChannels.add(message.data.channel);
+                        log(`✓ Joined channel: ${message.data.channel}`);
+                    } else if (message.event === 'left_channel') {
+                        joinedChannels.delete(message.data.channel);
+                        log(`✓ Left channel: ${message.data.channel}`);
+                    }
+                    
+                } catch (error) {
+                    log(`Error parsing message: ${error.message}`);
+                }
+            };
+
+            ws.onclose = function() {
+                log('Connection closed');
+                updateStatus(false);
+            };
+
+            ws.onerror = function(error) {
+                log(`WebSocket error: ${error.message || 'Unknown error'}`);
+                updateStatus(false);
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                log('Disconnecting...');
+                ws.close();
+            }
+        }
+
+        function joinChannel() {
+            if (!isConnected) {
+                log('Error: Not connected to server');
+                return;
+            }
+
+            const channelName = document.getElementById('channelName').value.trim();
+            if (!channelName) {
+                log('Error: Channel name is required');
+                return;
+            }
+
+            const metadataText = document.getElementById('metadata').value.trim();
+            const message = {
+                event: 'join_channel',
+                channel: channelName
+            };
+
+            if (metadataText) {
+                try {
+                    message.data = JSON.parse(metadataText);
+                    log(`Joining channel '${channelName}' with metadata: ${metadataText}`);
+                } catch (error) {
+                    log(`Error parsing metadata JSON: ${error.message}`);
+                    return;
+                }
+            } else {
+                log(`Joining channel '${channelName}' without metadata`);
+            }
+
+            ws.send(JSON.stringify(message));
+        }
+
+        function joinChannelNoMetadata() {
+            document.getElementById('metadata').value = '';
+            joinChannel();
+        }
+
+        function leaveChannel() {
+            if (!isConnected) {
+                log('Error: Not connected to server');
+                return;
+            }
+
+            const channelName = document.getElementById('channelName').value.trim();
+            if (!channelName) {
+                log('Error: Channel name is required');
+                return;
+            }
+
+            log(`Leaving channel '${channelName}'`);
+            ws.send(JSON.stringify({
+                event: 'leave_channel',
+                channel: channelName
+            }));
+        }
+
+        function joinMultipleChannels() {
+            const channels = ['channel-1', 'channel-2', 'channel-3'];
+            const baseMetadata = {
+                user_type: 'test',
+                joined_from: 'bulk_join',
+                timestamp: new Date().toISOString()
+            };
+
+            channels.forEach((channel, index) => {
+                setTimeout(() => {
+                    const metadata = {
+                        ...baseMetadata,
+                        channel_index: index + 1,
+                        channel_name: channel
+                    };
+                    
+                    log(`Joining channel '${channel}' with metadata: ${JSON.stringify(metadata)}`);
+                    ws.send(JSON.stringify({
+                        event: 'join_channel',
+                        channel: channel,
+                        data: metadata
+                    }));
+                }, index * 500);
+            });
+        }
+
+        function leaveAllChannels() {
+            joinedChannels.forEach(channel => {
+                log(`Leaving channel '${channel}'`);
+                ws.send(JSON.stringify({
+                    event: 'leave_channel',
+                    channel: channel
+                }));
+            });
+        }
+
+        function setExampleMetadata(type) {
+            const metadataField = document.getElementById('metadata');
+            
+            switch (type) {
+                case 'user':
+                    metadataField.value = JSON.stringify({
+                        user_type: 'premium',
+                        user_id: 12345,
+                        username: 'testuser',
+                        joined_from: 'web_app'
+                    }, null, 2);
+                    break;
+                case 'session':
+                    metadataField.value = JSON.stringify({
+                        session_id: 'sess_' + Date.now(),
+                        ip_address: '192.168.1.100',
+                        user_agent: 'Mozilla/5.0...',
+                        timestamp: new Date().toISOString()
+                    }, null, 2);
+                    break;
+                case 'preferences':
+                    metadataField.value = JSON.stringify({
+                        notifications: true,
+                        theme: 'dark',
+                        language: 'en',
+                        timezone: 'America/New_York'
+                    }, null, 2);
+                    break;
+                case 'complex':
+                    metadataField.value = JSON.stringify({
+                        user_type: 'premium',
+                        subscription: {
+                            plan: 'pro',
+                            expires: '2024-12-31'
+                        },
+                        preferences: {
+                            notifications: true,
+                            theme: 'dark'
+                        },
+                        metadata: {
+                            joined_from: 'web_app',
+                            referrer: 'google.com',
+                            campaign: 'summer2024'
+                        }
+                    }, null, 2);
+                    break;
+                case 'clear':
+                    metadataField.value = '';
+                    break;
+            }
+        }
+
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+        }
+
+        // Auto-connect on page load
+        connect();
+    </script>
+</body>
+</html>

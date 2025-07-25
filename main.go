@@ -43,7 +43,7 @@ func init() {
 	rootCmd.Flags().StringVar(&httpToken, "http-token", "", "HTTP API authentication token (required for API access)")
 	rootCmd.Flags().StringVarP(&workingDir, "dir", "d", "", "Working directory for Laravel commands (default: LARAVEL_PATH env var)")
 	rootCmd.Flags().StringVar(&phpBinary, "php", "", "PHP binary path (default: 'php' or PHP_BINARY env var)")
-	rootCmd.Flags().StringVar(&laravelCmd, "command", "", "Laravel artisan command to execute (default: 'ns:socket-handler' or LARAVEL_COMMAND env var)")
+	rootCmd.Flags().StringVar(&laravelCmd, "command", "", "Laravel artisan command to execute (default: 'socket:handle' or LARAVEL_COMMAND env var)")
 	rootCmd.Flags().StringVar(&tempDir, "temp", "", "Temporary directory for payload files (default: system temp/socket-server-payloads or SOCKET_TEMP_DIR env var)")
 }
 

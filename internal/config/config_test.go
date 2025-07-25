@@ -38,8 +38,8 @@ func TestNew(t *testing.T) {
 		t.Errorf("Expected default PHP binary 'php', got %s", cfg.PHPBinary)
 	}
 
-	if cfg.LaravelCmd != "ns:socket-handler" {
-		t.Errorf("Expected default Laravel command 'ns:socket-handler', got %s", cfg.LaravelCmd)
+	if cfg.LaravelCmd != "socket:handle" {
+		t.Errorf("Expected default Laravel command 'socket:handle', got %s", cfg.LaravelCmd)
 	}
 
 	if cfg.WorkingDir != "." {

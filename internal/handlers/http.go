@@ -115,20 +115,51 @@ func (h *HTTPHandlers) KickClient(w http.ResponseWriter, r *http.Request) {
 
 // Broadcast sends a message to a channel
 func (h *HTTPHandlers) Broadcast(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
+	h.logger.Info("🚀 Broadcast request started")
+
 	var payload struct {
-		Channel string      `json:"channel"`
-		Event   string      `json:"event"`
-		Data    interface{} `json:"data"`
+		Channel             string      `json:"channel"`
+		Event               string      `json:"event"`
+		Data                interface{} `json:"data"`
+		BroadcastToEveryone bool        `json:"broadcast_to_everyone"`
+		ExcludeCurrentUser  bool        `json:"exclude_current_user"`
+		UserID              *string     `json:"user_id"`
+		ClientID            *string     `json:"client_id"`
+		BroadcastType       string      `json:"broadcast_type"` // "channel", "global", "authenticated", "user", "user_except", "client"
 	}
 
+	decodeStart := time.Now()
 	err := json.NewDecoder(r.Body).Decode(&payload)
+	decodeTime := time.Since(decodeStart)
+	h.logger.Info("⏱️ JSON decode took: %v", decodeTime)
 	if err != nil {
-		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-		return
-	}
+		h.logger.Error("Failed to decode JSON payload", "error", err.Error())
 
-	if payload.Channel == "" {
-		http.Error(w, "Channel is required", http.StatusBadRequest)
+		// Provide more specific error messages for common issues
+		errorMsg := "Invalid JSON payload: " + err.Error()
+		if jsonErr, ok := err.(*json.UnmarshalTypeError); ok {
+			switch jsonErr.Field {
+			case "channel":
+				errorMsg = "Invalid 'channel' field: expected string, got " + jsonErr.Value + ". Example: \"channel\": \"my-channel\""
+			case "event":
+				errorMsg = "Invalid 'event' field: expected string, got " + jsonErr.Value + ". Example: \"event\": \"my-event\""
+			case "user_id":
+				errorMsg = "Invalid 'user_id' field: expected string, got " + jsonErr.Value + ". Example: \"user_id\": \"123\""
+			case "client_id":
+				errorMsg = "Invalid 'client_id' field: expected string, got " + jsonErr.Value + ". Example: \"client_id\": \"abc123\""
+			case "broadcast_type":
+				errorMsg = "Invalid 'broadcast_type' field: expected string, got " + jsonErr.Value + ". Valid values: \"global\", \"authenticated\", \"user\", \"user_except\", \"client\", \"channel\""
+			case "broadcast_to_everyone":
+				errorMsg = "Invalid 'broadcast_to_everyone' field: expected boolean, got " + jsonErr.Value + ". Example: \"broadcast_to_everyone\": true"
+			case "exclude_current_user":
+				errorMsg = "Invalid 'exclude_current_user' field: expected boolean, got " + jsonErr.Value + ". Example: \"exclude_current_user\": false"
+			default:
+				errorMsg = "Invalid field '" + jsonErr.Field + "': expected " + jsonErr.Type.String() + ", got " + jsonErr.Value
+			}
+		}
+
+		http.Error(w, errorMsg, http.StatusBadRequest)
 		return
 	}
 
@@ -136,6 +167,7 @@ func (h *HTTPHandlers) Broadcast(w http.ResponseWriter, r *http.Request) {
 		payload.Event = "broadcast"
 	}
 
+	msgCreateStart := time.Now()
 	message := models.Message{
 		ID:        uuid.New().String(),
 		Channel:   payload.Channel,
@@ -143,14 +175,105 @@ func (h *HTTPHandlers) Broadcast(w http.ResponseWriter, r *http.Request) {
 		Data:      payload.Data,
 		Timestamp: time.Now(),
 	}
+	msgCreateTime := time.Since(msgCreateStart)
+	h.logger.Info("⏱️ Message creation took: %v", msgCreateTime)
 
-	h.wsServer.BroadcastToChannel(payload.Channel, message)
+	// Determine broadcast type based on payload
+	typeDetectStart := time.Now()
+	broadcastType := payload.BroadcastType
+	if broadcastType == "" {
+		// Legacy behavior: determine from other fields
+		if payload.BroadcastToEveryone {
+			broadcastType = "global"
+		} else if payload.ExcludeCurrentUser && payload.UserID != nil && *payload.UserID != "" {
+			broadcastType = "user_except"
+		} else if payload.UserID != nil && *payload.UserID != "" {
+			broadcastType = "user"
+		} else if payload.Channel != "" {
+			broadcastType = "channel"
+		} else {
+			broadcastType = "global"
+		}
+	}
+	typeDetectTime := time.Since(typeDetectStart)
+	h.logger.Info("⏱️ Broadcast type detection took: %v", typeDetectTime)
 
+	broadcastStart := time.Now()
+	var responseMessage string
+	switch broadcastType {
+	case "global":
+		h.logger.Info("🌍 Starting global broadcast")
+		h.wsServer.BroadcastToAll(message)
+		responseMessage = "Message broadcasted to all clients"
+
+	case "authenticated":
+		h.logger.Info("🔐 Starting authenticated broadcast")
+		h.wsServer.BroadcastToAuthenticated(message)
+		responseMessage = "Message broadcasted to all authenticated clients"
+
+	case "user":
+		if payload.UserID == nil || *payload.UserID == "" {
+			http.Error(w, "user_id is required for user broadcast", http.StatusBadRequest)
+			return
+		}
+		h.logger.Info("👤 Starting user broadcast to user: %s", *payload.UserID)
+		h.wsServer.BroadcastToUser(*payload.UserID, message)
+		responseMessage = "Message broadcasted to user " + *payload.UserID
+
+	case "user_except":
+		if payload.UserID == nil || *payload.UserID == "" {
+			http.Error(w, "user_id is required for user_except broadcast", http.StatusBadRequest)
+			return
+		}
+		h.logger.Info("👥 Starting user_except broadcast excluding user: %s", *payload.UserID)
+		h.wsServer.BroadcastToUsersExcept(*payload.UserID, message)
+		responseMessage = "Message broadcasted to all authenticated clients except user " + *payload.UserID
+
+	case "client":
+		if payload.ClientID == nil || *payload.ClientID == "" {
+			http.Error(w, "client_id is required for client broadcast", http.StatusBadRequest)
+			return
+		}
+		h.logger.Info("🖥️ Starting client broadcast to client: %s", *payload.ClientID)
+		err := h.wsServer.BroadcastToClient(*payload.ClientID, message)
+		if err != nil {
+			if err == models.ErrClientNotFound {
+				http.Error(w, "Client not found", http.StatusNotFound)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		responseMessage = "Message sent to client " + *payload.ClientID
+
+	case "channel":
+		if payload.Channel == "" {
+			http.Error(w, "channel is required for channel broadcast", http.StatusBadRequest)
+			return
+		}
+		h.logger.Info("📺 Starting channel broadcast to channel: %s", payload.Channel)
+		h.wsServer.BroadcastToChannel(payload.Channel, message)
+		responseMessage = "Message broadcasted to channel " + payload.Channel
+
+	default:
+		http.Error(w, "Invalid broadcast_type. Must be: global, authenticated, user, user_except, client, or channel", http.StatusBadRequest)
+		return
+	}
+	broadcastTime := time.Since(broadcastStart)
+	h.logger.Info("⏱️ Broadcast operation took: %v", broadcastTime)
+
+	responseStart := time.Now()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"status":  "success",
-		"message": "Message broadcasted",
+		"message": responseMessage,
+		"type":    broadcastType,
 	})
+	responseTime := time.Since(responseStart)
+	h.logger.Info("⏱️ Response generation took: %v", responseTime)
+
+	totalTime := time.Since(startTime)
+	h.logger.Info("🏁 Total broadcast request took: %v", totalTime)
 }
 
 // Health returns server health status

@@ -96,6 +96,9 @@ func (s *LaravelService) createTempPayloadFile(message models.Message, client *m
 		"message_id": uuid.New().String(),
 		"timestamp":  time.Now().Format(time.RFC3339),
 		"action":     message.Event,
+		"id":         message.ID,
+		"channel":    message.Channel,
+		"private":    message.Private,
 		"auth": map[string]interface{}{
 			"user_id":     client.UserID,
 			"user_email":  client.Email,
@@ -104,13 +107,7 @@ func (s *LaravelService) createTempPayloadFile(message models.Message, client *m
 			"username":    client.Username,
 			"remote_addr": client.RemoteAddr,
 		},
-		"data": map[string]interface{}{
-			"id":        message.ID,
-			"channel":   message.Channel,
-			"event":     message.Event,
-			"data":      message.Data,
-			"timestamp": message.Timestamp,
-		},
+		"data": message.Data,
 	}
 
 	return s.createTempPayloadFileFromData(standardizedPayload)

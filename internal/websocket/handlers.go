@@ -64,18 +64,45 @@ func (s *Server) handleMessage(client *models.Client, msg map[string]interface{}
 	// Forward unsupported messages to Laravel
 	s.logger.Debug("Forwarding unsupported message to Laravel from client %s", client.ID)
 
+	// log the variable msg
+	s.logger.Debug("Raw message from client %s: %v", client.ID, msg)
+
 	// Convert raw message to models.Message
 	message := models.Message{
 		ID:        uuid.New().String(),
 		Event:     getStringFromMap(msg, "action", "unknown"),
 		Channel:   getStringFromMap(msg, "channel", ""),
-		Data:      msg,
+		Data:      msg["data"],
 		UserID:    client.UserID,
 		Username:  client.Username,
 		Timestamp: time.Now(),
 	}
 
+	// Log specifically for ping messages
+	if message.Event == "ping" {
+		s.logger.Info("🏓 Client %s sent ping message, event=%s, channel=%s, data=%v", client.ID, message.Event, message.Channel, message.Data)
+	}
+
+	// Check if this is a ping message that should be handled internally
+	if message.Event == "ping" && message.Channel == "" && message.Data == nil {
+		s.logger.Info("🏓 Handling ping internally, not sending to Laravel")
+		// Just send pong back to client
+		pong := models.Message{
+			ID:        uuid.New().String(),
+			Event:     "pong",
+			Timestamp: time.Now(),
+		}
+		client.SendMessage(pong)
+		return
+	}
+
+	start := time.Now()
 	s.laravelSvc.DispatchMessage(message, client)
+	duration := time.Since(start)
+
+	if message.Event == "ping" {
+		s.logger.Info("🏓 Laravel ping dispatch took: %v", duration)
+	}
 }
 
 // getStringFromMap safely extracts a string value from a map
@@ -155,16 +182,22 @@ func (s *Server) handleAuthentication(client *models.Client, msg map[string]inte
 // handleJoinChannel adds client to a channel
 func (s *Server) handleJoinChannel(client *models.Client, msg map[string]interface{}) {
 	channelName, ok := msg["channel"].(string)
+	privateStatus, okPrivate := msg["private"].(bool)
+
 	if !ok {
 		s.logger.Error("Client %s sent invalid channel name for join", client.ID)
 		s.sendError(client, "Invalid channel name")
 		return
 	}
 
+	if !okPrivate {
+		privateStatus = false // Default to public channel if not specified
+	}
+
 	s.logger.Debug("Client %s (%s) attempting to join channel '%s'", client.ID, client.Username, channelName)
 
 	// Get or create channel
-	channel := s.getOrCreateChannel(channelName)
+	channel := s.getOrCreateChannel(channelName, privateStatus)
 
 	// Check if channel requires authentication
 	if channel.RequireAuth && client.UserID == "" {
@@ -173,20 +206,48 @@ func (s *Server) handleJoinChannel(client *models.Client, msg map[string]interfa
 		return
 	}
 
-	// Add client to channel
-	channel.AddClient(client)
-	client.AddToChannel(channelName)
+	// Create message for Laravel dispatch
+	// Forward optional data from client, or nil if not provided
+	var dataToForward interface{}
+	if clientData, exists := msg["data"]; exists {
+		dataToForward = clientData
+	} else {
+		dataToForward = nil
+	}
 
-	s.logger.ChannelJoined(client.ID, client.Username, channelName)
-
-	// Send confirmation
-	confirmation := models.Message{
+	joinMessage := models.Message{
 		ID:        uuid.New().String(),
-		Event:     "joined_channel",
-		Data:      map[string]string{"channel": channelName},
+		Channel:   channelName,
+		Event:     "join_channel",
+		Data:      dataToForward,
+		Private:   &privateStatus,
+		UserID:    client.UserID,
+		Username:  client.Username,
 		Timestamp: time.Now(),
 	}
-	client.SendMessage(confirmation)
+
+	// Dispatch to Laravel
+	// if the command works with no errors, we'll assume the joinning is approved
+	// and proceed to add the client to the channel
+	if err := s.laravelSvc.DispatchMessage(joinMessage, client); err != nil {
+		s.logger.Error("Failed to dispatch join_channel message to Laravel: %v", err)
+	} else {
+
+		// Add client to channel with metadata
+		channel.AddClient(client)
+		client.AddToChannelWithMetadata(channelName, dataToForward)
+
+		s.logger.ChannelJoined(client.ID, client.Username, channelName)
+
+		// Send confirmation
+		confirmation := models.Message{
+			ID:        uuid.New().String(),
+			Event:     "joined_channel",
+			Data:      map[string]string{"channel": channelName},
+			Timestamp: time.Now(),
+		}
+		client.SendMessage(confirmation)
+	}
 }
 
 // handleLeaveChannel removes client from a channel
@@ -207,11 +268,46 @@ func (s *Server) handleLeaveChannel(client *models.Client, msg map[string]interf
 		return
 	}
 
+	// Get stored metadata for this channel before removing client
+	storedMetadata := client.GetChannelMetadata(channelName)
+
 	// Remove client from channel
 	channel.RemoveClient(client.ID)
 	client.RemoveFromChannel(channelName)
 
 	s.logger.ChannelLeft(client.ID, client.Username, channelName)
+
+	// Create message for Laravel dispatch
+	// Use stored metadata if available, otherwise fall back to client data or default
+	var dataToForward interface{}
+	if storedMetadata != nil {
+		dataToForward = storedMetadata.Data
+	} else if clientData, exists := msg["data"]; exists {
+		dataToForward = clientData
+	} else {
+		// Default system data when no stored metadata or client data
+		dataToForward = map[string]interface{}{
+			"channel":   channelName,
+			"client_id": client.ID,
+			"user_id":   client.UserID,
+			"username":  client.Username,
+		}
+	}
+
+	leaveMessage := models.Message{
+		ID:        uuid.New().String(),
+		Channel:   channelName,
+		Event:     "leave_channel",
+		Data:      dataToForward,
+		UserID:    client.UserID,
+		Username:  client.Username,
+		Timestamp: time.Now(),
+	}
+
+	// Dispatch to Laravel
+	if err := s.laravelSvc.DispatchMessage(leaveMessage, client); err != nil {
+		s.logger.Error("Failed to dispatch leave_channel message to Laravel: %v", err)
+	}
 
 	// Send confirmation
 	confirmation := models.Message{
@@ -280,11 +376,48 @@ func (s *Server) disconnectClient(client *models.Client) {
 	delete(s.clients, client.ID)
 	s.mutex.Unlock()
 
-	// Remove client from all channels
+	// Remove client from all channels and notify Laravel
 	channels := client.GetChannels()
+	allMetadata := client.GetAllChannelMetadata()
+
 	for channelName := range channels {
 		if channel, exists := s.GetChannel(channelName); exists {
+			// Remove client from channel
 			channel.RemoveClient(client.ID)
+
+			// Get stored metadata for this channel
+			var dataToForward interface{}
+			if metadata, exists := allMetadata[channelName]; exists && metadata != nil {
+				dataToForward = metadata.Data
+			} else {
+				// Fallback to default system data
+				dataToForward = map[string]interface{}{
+					"channel":         channelName,
+					"client_id":       client.ID,
+					"user_id":         client.UserID,
+					"username":        client.Username,
+					"disconnect_type": "connection_lost", // Indicate this was due to disconnection
+					"reason":          "client_disconnected",
+				}
+			}
+
+			// Create leave_channel message for Laravel dispatch
+			leaveMessage := models.Message{
+				ID:        uuid.New().String(),
+				Channel:   channelName,
+				Event:     "leave_channel",
+				Data:      dataToForward,
+				UserID:    client.UserID,
+				Username:  client.Username,
+				Timestamp: time.Now(),
+			}
+
+			// Dispatch to Laravel (don't block disconnection if Laravel fails)
+			if err := s.laravelSvc.DispatchMessage(leaveMessage, client); err != nil {
+				s.logger.Error("Failed to dispatch disconnect leave_channel message to Laravel for channel %s: %v", channelName, err)
+			} else {
+				s.logger.Debug("Notified Laravel about client %s leaving channel %s due to disconnection", client.ID, channelName)
+			}
 		}
 	}
 
@@ -293,7 +426,7 @@ func (s *Server) disconnectClient(client *models.Client) {
 }
 
 // getOrCreateChannel gets an existing channel or creates a new one
-func (s *Server) getOrCreateChannel(channelName string) *models.Channel {
+func (s *Server) getOrCreateChannel(channelName string, private bool) *models.Channel {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -303,7 +436,7 @@ func (s *Server) getOrCreateChannel(channelName string) *models.Channel {
 		channel = &models.Channel{
 			Name:        channelName,
 			Clients:     make(map[string]*models.Client),
-			IsPrivate:   false,
+			IsPrivate:   private,
 			RequireAuth: false,
 			CreatedAt:   time.Now(),
 		}

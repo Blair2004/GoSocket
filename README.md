@@ -35,7 +35,7 @@ export PATH=/usr/local/go/bin:$PATH
 
 ```bash
 # Using command-line options (HTTP token is required)
-./bin/socket-server --port 8080 --token "your-jwt-secret" --http-token "your-api-token" --dir /path/to/laravel --php /usr/bin/php8.2 --command "ns:socket-handler"
+./bin/socket-server --port 8080 --token "your-jwt-secret" --http-token "your-api-token" --dir /path/to/laravel --php /usr/bin/php8.2 --command "socket:handle"
 
 # Or using environment variables (optional)
 export SOCKET_PORT=8080
@@ -43,7 +43,7 @@ export JWT_SECRET="your-jwt-secret"
 export HTTP_TOKEN="your-api-token"
 export LARAVEL_PATH="/path/to/laravel"
 export PHP_BINARY="/usr/bin/php8.2"
-export LARAVEL_COMMAND="ns:socket-handler"
+export LARAVEL_COMMAND="socket:handle"
 ./bin/socket-server
 
 # Or mix both (command-line flags take precedence)
@@ -145,7 +145,7 @@ event(new OrderCreated($order));
 ./bin/socket-server --help
 
 # Start with custom configuration
-./bin/socket-server --port 9000 --token "my-secret-key" --dir /var/www/laravel --php /usr/bin/php8.2 --command "ns:socket-handler"
+./bin/socket-server --port 9000 --token "my-secret-key" --dir /var/www/laravel --php /usr/bin/php8.2 --command "socket:handle"
 
 # Short form flags (where available)
 ./bin/socket-server -p 9000 -t "my-secret-key" -d /var/www/laravel
@@ -156,7 +156,7 @@ Available flags:
 - `--token, -t`: JWT secret for authentication (default: JWT_SECRET env var)
 - `--dir, -d`: Working directory for Laravel commands (default: LARAVEL_PATH env var or current directory)
 - `--php`: PHP binary path (default: 'php' or PHP_BINARY env var)
-- `--command`: Laravel artisan command to execute (default: 'ns:socket-handler' or LARAVEL_COMMAND env var)
+- `--command`: Laravel artisan command to execute (default: 'socket:handle' or LARAVEL_COMMAND env var)
 
 ### Environment Variables
 
@@ -164,7 +164,7 @@ Available flags:
 - `JWT_SECRET`: JWT signing secret
 - `LARAVEL_PATH`: Working directory for Laravel commands
 - `PHP_BINARY`: PHP binary path (default: 'php')
-- `LARAVEL_COMMAND`: Laravel artisan command to execute (default: 'ns:socket-handler')
+- `LARAVEL_COMMAND`: Laravel artisan command to execute (default: 'socket:handle')
 - `SOCKET_TEMP_DIR`: Temporary directory for payload files (default: system temp/socket-server-payloads)
 - `SOCKET_BINARY_PATH`: Path to socket CLI binary
 - `SOCKET_SERVER_URL`: Socket server URL for CLI
@@ -180,7 +180,7 @@ SOCKET_JWT_SECRET=your-jwt-secret
 SOCKET_DEBUG=false
 LARAVEL_PATH=/var/www/laravel
 PHP_BINARY=/usr/bin/php8.2
-LARAVEL_COMMAND=ns:socket-handler
+LARAVEL_COMMAND=socket:handle
 ```
 
 ## API Endpoints

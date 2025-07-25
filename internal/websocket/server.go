@@ -37,8 +37,9 @@ func New(authService *auth.Service, laravelSvc *services.LaravelService, logger 
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allow all origins for now
 			},
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
+			ReadBufferSize:    4096, // Increased from 1024
+			WriteBufferSize:   4096, // Increased from 1024
+			EnableCompression: true, // Enable compression for better performance
 		},
 	}
 }
@@ -165,18 +166,362 @@ func (s *Server) KickClient(clientID string) error {
 
 // BroadcastToChannel sends a message to all clients in a channel
 func (s *Server) BroadcastToChannel(channelName string, message models.Message) {
+	start := time.Now()
+	s.logger.Info("📺 BroadcastToChannel started for channel: %s", channelName)
+
+	lookupStart := time.Now()
 	channel, exists := s.GetChannel(channelName)
 	if !exists {
 		s.logger.Warn("Channel %s not found for broadcast", channelName)
 		return
 	}
+	lookupTime := time.Since(lookupStart)
+	s.logger.Info("⏱️ Channel lookup took: %v", lookupTime)
 
+	clientsStart := time.Now()
 	clients := channel.GetClients()
+	clientsTime := time.Since(clientsStart)
+	s.logger.Info("⏱️ Getting clients took: %v", clientsTime)
+
+	sendStart := time.Now()
+
+	// Use goroutines for non-blocking sends with timeout
+	type clientResult struct {
+		clientID string
+		err      error
+		duration time.Duration
+	}
+
+	results := make(chan clientResult, len(clients))
+
+	// Send to all clients concurrently
 	for _, client := range clients {
-		if err := client.SendMessage(message); err != nil {
-			s.logger.Error("Failed to send message to client %s: %v", client.ID, err)
+		go func(c *models.Client) {
+			clientStart := time.Now()
+			err := c.SendMessage(message)
+			results <- clientResult{
+				clientID: c.ID,
+				err:      err,
+				duration: time.Since(clientStart),
+			}
+		}(client)
+	}
+
+	// Collect results with timeout
+	successCount := 0
+	timeout := time.After(1 * time.Second) // Max 1 second for all sends in local env
+
+collectLoop:
+	for i := 0; i < len(clients); i++ {
+		select {
+		case result := <-results:
+			if result.err != nil {
+				s.logger.Error("Failed to send message to client %s: %v", result.clientID, result.err)
+			} else {
+				successCount++
+			}
+			if result.duration > 10*time.Millisecond {
+				s.logger.Warn("⚠️ Slow client send to %s took: %v", result.clientID, result.duration)
+			}
+		case <-timeout:
+			s.logger.Warn("⏰ Broadcast timeout - %d/%d clients completed", i, len(clients))
+			break collectLoop
 		}
 	}
 
+	sendTime := time.Since(sendStart)
+	s.logger.Info("⏱️ Concurrent sending to %d clients took: %v (success: %d)", len(clients), sendTime, successCount)
+
+	// After collecting results, remove clients that consistently failed
+	go func() {
+		for i := 0; i < len(clients); i++ {
+			select {
+			case result := <-results:
+				// If a client took too long, it's likely dead - remove it
+				if result.duration > 500*time.Millisecond && result.err != nil {
+					s.logger.Info("🗑️ Removing slow/dead client: %s (took %v)", result.clientID, result.duration)
+					s.mutex.Lock()
+					delete(s.clients, result.clientID)
+					s.mutex.Unlock()
+				}
+			case <-time.After(100 * time.Millisecond):
+				// Any remaining clients are likely dead
+				return
+			}
+		}
+	}()
+
+	totalTime := time.Since(start)
+	s.logger.Info("🏁 BroadcastToChannel total time: %v", totalTime)
 	s.logger.Info("Broadcasted message to %d clients in channel %s", len(clients), channelName)
+}
+
+// BroadcastToAll sends a message to all connected clients
+func (s *Server) BroadcastToAll(message models.Message) {
+	start := time.Now()
+	s.logger.Info("🌍 BroadcastToAll started")
+
+	lockStart := time.Now()
+	s.mutex.RLock()
+	clients := make([]*models.Client, 0, len(s.clients))
+	for _, client := range s.clients {
+		clients = append(clients, client)
+	}
+	s.mutex.RUnlock()
+	lockTime := time.Since(lockStart)
+	s.logger.Info("⏱️ Client collection took: %v", lockTime)
+
+	sendStart := time.Now()
+
+	// Use goroutines for non-blocking sends with timeout
+	type clientResult struct {
+		clientID string
+		err      error
+		duration time.Duration
+	}
+
+	results := make(chan clientResult, len(clients))
+
+	// Send to all clients concurrently
+	for _, client := range clients {
+		s.logger.Info("🎇 Starting goroutine for client %s", client.ID)
+		go func(c *models.Client, s *Server) {
+			s.logger.Info("🏤 Sending message to client %s", c.ID)
+			clientStart := time.Now()
+			err := c.SendMessage(message)
+			results <- clientResult{
+				clientID: c.ID,
+				err:      err,
+				duration: time.Since(clientStart),
+			}
+			s.logger.Info("💌 Sent message to client %s", c.ID)
+		}(client, s)
+		s.logger.Info("🎆 Ended goroutine for client %s", client.ID)
+	}
+
+	// Collect results with timeout
+	successCount := 0
+	timeout := time.After(1 * time.Second) // Max 1 second for all sends in local env
+
+collectLoop:
+	for i := 0; i < len(clients); i++ {
+		select {
+		case result := <-results:
+			if result.err != nil {
+				s.logger.Error("Failed to send message to client %s: %v", result.clientID, result.err)
+			} else {
+				successCount++
+			}
+			if result.duration > 10*time.Millisecond {
+				s.logger.Warn("⚠️ Slow global client send to %s took: %v", result.clientID, result.duration)
+			}
+		case <-timeout:
+			s.logger.Warn("⏰ Global broadcast timeout - %d/%d clients completed", i, len(clients))
+			break collectLoop
+		}
+	}
+
+	sendTime := time.Since(sendStart)
+	s.logger.Info("⏱️ Concurrent global sending to %d clients took: %v (success: %d)", len(clients), sendTime, successCount)
+
+	// After collecting results, remove clients that consistently failed
+	go func() {
+		for i := 0; i < len(clients); i++ {
+			select {
+			case result := <-results:
+				// If a client took too long, it's likely dead - remove it
+				if result.duration > 500*time.Millisecond && result.err != nil {
+					s.logger.Info("🗑️ Removing slow/dead client: %s (took %v)", result.clientID, result.duration)
+					s.mutex.Lock()
+					delete(s.clients, result.clientID)
+					s.mutex.Unlock()
+				}
+			case <-time.After(100 * time.Millisecond):
+				// Any remaining clients are likely dead
+				return
+			}
+		}
+	}()
+
+	totalTime := time.Since(start)
+	s.logger.Info("🏁 BroadcastToAll total time: %v", totalTime)
+	s.logger.Info("Broadcasted message to %d/%d clients globally", successCount, len(clients))
+}
+
+// BroadcastToAuthenticated sends a message to all authenticated clients
+func (s *Server) BroadcastToAuthenticated(message models.Message) {
+	start := time.Now()
+	s.logger.Info("🔐 BroadcastToAuthenticated started")
+
+	lockStart := time.Now()
+	s.mutex.RLock()
+	clients := make([]*models.Client, 0)
+	for _, client := range s.clients {
+		if client.UserID != "" {
+			clients = append(clients, client)
+		}
+	}
+	s.mutex.RUnlock()
+	lockTime := time.Since(lockStart)
+	s.logger.Info("⏱️ Authenticated client collection took: %v", lockTime)
+
+	sendStart := time.Now()
+
+	// Use goroutines for non-blocking sends with timeout
+	type clientResult struct {
+		clientID string
+		err      error
+		duration time.Duration
+	}
+
+	results := make(chan clientResult, len(clients))
+
+	// Send to all clients concurrently
+	for _, client := range clients {
+		go func(c *models.Client) {
+			clientStart := time.Now()
+			err := c.SendMessage(message)
+			results <- clientResult{
+				clientID: c.ID,
+				err:      err,
+				duration: time.Since(clientStart),
+			}
+		}(client)
+	}
+
+	// Collect results with timeout
+	successCount := 0
+	timeout := time.After(1 * time.Second) // Max 1 second for all sends in local env
+
+collectLoop:
+	for i := 0; i < len(clients); i++ {
+		select {
+		case result := <-results:
+			if result.err != nil {
+				s.logger.Error("Failed to send message to authenticated client %s: %v", result.clientID, result.err)
+			} else {
+				successCount++
+			}
+			if result.duration > 10*time.Millisecond {
+				s.logger.Warn("⚠️ Slow authenticated client send to %s took: %v", result.clientID, result.duration)
+			}
+		case <-timeout:
+			s.logger.Warn("⏰ Authenticated broadcast timeout - %d/%d clients completed", i, len(clients))
+			break collectLoop
+		}
+	}
+
+	sendTime := time.Since(sendStart)
+	s.logger.Info("⏱️ Concurrent authenticated sending to %d clients took: %v (success: %d)", len(clients), sendTime, successCount)
+
+	// After collecting results, remove clients that consistently failed
+	go func() {
+		for i := 0; i < len(clients); i++ {
+			select {
+			case result := <-results:
+				// If a client took too long, it's likely dead - remove it
+				if result.duration > 500*time.Millisecond && result.err != nil {
+					s.logger.Info("🗑️ Removing slow/dead client: %s (took %v)", result.clientID, result.duration)
+					s.mutex.Lock()
+					delete(s.clients, result.clientID)
+					s.mutex.Unlock()
+				}
+			case <-time.After(100 * time.Millisecond):
+				// Any remaining clients are likely dead
+				return
+			}
+		}
+	}()
+
+	totalTime := time.Since(start)
+	s.logger.Info("🏁 BroadcastToAuthenticated total time: %v", totalTime)
+	s.logger.Info("Broadcasted message to %d authenticated clients", successCount)
+}
+
+// BroadcastToUser sends a message to all connections of a specific user
+func (s *Server) BroadcastToUser(userID string, message models.Message) {
+	s.mutex.RLock()
+	clients := make([]*models.Client, 0)
+	for _, client := range s.clients {
+		if client.UserID == userID {
+			clients = append(clients, client)
+		}
+	}
+	s.mutex.RUnlock()
+
+	successCount := 0
+	for _, client := range clients {
+		if err := client.SendMessage(message); err != nil {
+			s.logger.Error("Failed to send message to user %s client %s: %v", userID, client.ID, err)
+		} else {
+			successCount++
+		}
+	}
+
+	s.logger.Info("Broadcasted message to %d connections of user %s", successCount, userID)
+}
+
+// BroadcastToUsersExcept sends a message to all authenticated clients except the specified user
+func (s *Server) BroadcastToUsersExcept(excludeUserID string, message models.Message) {
+	s.mutex.RLock()
+	clients := make([]*models.Client, 0)
+	for _, client := range s.clients {
+		if client.UserID != "" && client.UserID != excludeUserID {
+			clients = append(clients, client)
+		}
+	}
+	s.mutex.RUnlock()
+
+	successCount := 0
+	for _, client := range clients {
+		if err := client.SendMessage(message); err != nil {
+			s.logger.Error("Failed to send message to client %s: %v", client.ID, err)
+		} else {
+			successCount++
+		}
+	}
+
+	s.logger.Info("Broadcasted message to %d authenticated clients (excluding user %s)", successCount, excludeUserID)
+}
+
+// BroadcastToClient sends a message to a specific client connection
+func (s *Server) BroadcastToClient(clientID string, message models.Message) error {
+	s.mutex.RLock()
+	client, exists := s.clients[clientID]
+	s.mutex.RUnlock()
+
+	if !exists {
+		return models.ErrClientNotFound
+	}
+
+	if err := client.SendMessage(message); err != nil {
+		s.logger.Error("Failed to send message to client %s: %v", clientID, err)
+		return err
+	}
+
+	s.logger.Info("Sent message to client %s", clientID)
+	return nil
+}
+
+// cleanupDeadConnections removes clients that consistently fail to receive messages
+func (s *Server) cleanupDeadConnections() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	var deadClients []string
+
+	for clientID, client := range s.clients {
+		if !client.IsConnected() {
+			deadClients = append(deadClients, clientID)
+		}
+	}
+
+	for _, clientID := range deadClients {
+		s.logger.Info("🧹 Cleaning up dead connection: %s", clientID)
+		delete(s.clients, clientID)
+	}
+
+	if len(deadClients) > 0 {
+		s.logger.Info("🧹 Cleaned up %d dead connections", len(deadClients))
+	}
 }
