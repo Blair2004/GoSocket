@@ -7,7 +7,7 @@
 ### Server Changes:
 1. **Configuration Enhancement**
    - Added `HTTPToken` field to `Config` struct
-   - Added `--http-token` command line flag
+   - Added `--server-token` command line flag
    - Added `HTTP_TOKEN` environment variable support
    - Added validation to require HTTP token for server startup
 
@@ -32,7 +32,7 @@
 
 ### CLI Client Changes:
 1. **Token Support**
-   - Added `--token` flag for HTTP API authentication
+   - Added `--server-token` flag for HTTP API authentication
    - Added support for `HTTP_TOKEN` environment variable
    - Added token validation - CLI refuses to run without token
 
@@ -55,7 +55,7 @@
 2. **Server Startup Protection**
    ```bash
    # Server refuses to start without HTTP token
-   ./bin/socket-server --token jwt-secret
+   ./bin/socket-server --jwt-secret jwt-secret
    # Error: HTTP API token cannot be empty
    ```
 
@@ -63,7 +63,7 @@
    ```bash
    # CLI refuses to run without token
    ./bin/socket health
-   # Error: HTTP API token is required. Use --token flag or set HTTP_TOKEN environment variable.
+   # Error: HTTP API token is required. Use --server-token flag or set HTTP_TOKEN environment variable.
    ```
 
 4. **Comprehensive Error Responses**
@@ -80,27 +80,27 @@
 ### Server Startup
 ```bash
 # Command line
-./bin/socket-server --http-token "your-secure-token"
+./bin/socket-server --server-token "your-secure-token"
 
 # Environment variable
 export HTTP_TOKEN="your-secure-token"
 ./bin/socket-server
 
 # Combined with JWT token
-./bin/socket-server --token "jwt-secret" --http-token "api-token"
+./bin/socket-server --jwt-secret "jwt-secret" --server-token "api-token"
 ```
 
 ### CLI Usage
 ```bash
 # Command line
-./bin/socket --token "your-secure-token" health
+./bin/socket --server-token "your-secure-token" health
 
 # Environment variable
 export HTTP_TOKEN="your-secure-token"
 ./bin/socket health
 
 # Send message
-./bin/socket --token "your-token" send --channel "orders" --data '{"test": true}'
+./bin/socket --server-token "your-token" send --channel "orders" --data '{"test": true}'
 ```
 
 ### Direct HTTP API
@@ -146,8 +146,8 @@ All tests pass successfully, confirming the security implementation is working a
 
 **Breaking Change**: This is a breaking change that requires existing users to:
 1. Generate a secure HTTP API token
-2. Update server startup scripts to include `--http-token` or set `HTTP_TOKEN`
-3. Update CLI usage to include `--token` or set `HTTP_TOKEN`
+2. Update server startup scripts to include `--server-token` or set `HTTP_TOKEN`
+3. Update CLI usage to include `--server-token` or set `HTTP_TOKEN`
 4. Update any direct API calls to include `Authorization: Bearer <token>` header
 
 The implementation maintains backward compatibility for WebSocket connections (which use JWT authentication) and static file serving.

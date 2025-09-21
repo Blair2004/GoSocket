@@ -236,8 +236,19 @@
         }
         
         function authenticate() {
-            // Simple demo token (in real app, get this from your Laravel API)
+            // WARNING: This demo token will NOT work with real server validation
+            // In production, get JWT tokens from your Laravel API endpoint
+            
+            // Example of how to get a real token:
+            // fetch('/api/socket-token')
+            //     .then(response => response.json())
+            //     .then(data => {
+            //         client.authenticate(data.token);
+            //     });
+            
+            // For demo purposes only (will fail server validation):
             const demoToken = 'demo.jwt.token';
+            console.warn('Using demo token - this will fail authentication with real server');
             client.authenticate(demoToken);
         }
         

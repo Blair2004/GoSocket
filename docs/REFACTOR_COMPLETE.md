@@ -166,11 +166,11 @@ The socket server has been completely refactored into a well-organized Go applic
 ### **Starting the Server**
 ```bash
 # Using the new structured application
-go run . --port 8080 --token "your-secret" --dir /path/to/laravel
+go run . --port 8080 --jwt-secret "your-secret" --dir /path/to/laravel
 
 # Or build and run
 go build -o socket-server .
-./socket-server --port 8080 --token "your-secret"
+./socket-server --port 8080 --jwt-secret "your-secret"
 ```
 
 ### **Adding New Features**

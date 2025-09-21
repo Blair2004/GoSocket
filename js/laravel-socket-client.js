@@ -528,17 +528,86 @@
      * Utility methods
      */
     LaravelSocketClient.createAuthToken = function(userData, secret) {
-        // Simple JWT creation (use a proper library in production)
-        const header = btoa(JSON.stringify({ typ: 'JWT', alg: 'HS256' }));
+        // WARNING: This is a simplified JWT implementation for demo purposes only!
+        // In production, use a proper JWT library like jsonwebtoken or jose
+        
+        console.warn('LaravelSocketClient.createAuthToken: This is a demo implementation. Use a proper JWT library in production!');
+        
+        // JWT requires proper HMAC-SHA256 signature, which is not available in browser without crypto library
+        // This demo creates a token that will NOT pass server validation
+        // You should generate JWT tokens server-side in your Laravel application
+        
+        const header = btoa(JSON.stringify({ typ: 'JWT', alg: 'HS256' }))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        
         const payload = btoa(JSON.stringify({
             ...userData,
             iat: Math.floor(Date.now() / 1000),
             exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour
-        }));
+        })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
         
-        // Note: This is a simplified version. Use a proper JWT library for production
-        const signature = btoa(`${header}.${payload}.${secret}`);
-        return `${header}.${payload}.${signature}`;
+        // This creates an INVALID signature - it's just for demo purposes
+        // Real JWT requires HMAC-SHA256(header.payload, secret)
+        const fakeSignature = btoa('DEMO_SIGNATURE_NOT_VALID')
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+            
+        return `${header}.${payload}.${fakeSignature}`;
+    };
+
+    /**
+     * Generate a proper JWT token server-side (Laravel example)
+     * 
+     * In your Laravel application, use this code to generate valid JWT tokens:
+     * 
+     * use Firebase\JWT\JWT;
+     * use Firebase\JWT\Key;
+     * 
+     * $payload = [
+     *     'user_id' => auth()->id(),
+     *     'username' => auth()->user()->name,
+     *     'email' => auth()->user()->email,
+     *     'iat' => time(),
+     *     'exp' => time() + (60 * 60) // 1 hour
+     * ];
+     * 
+     * $jwtSecret = config('app.jwt_secret'); // Same as your Go server
+     * $token = JWT::encode($payload, $jwtSecret, 'HS256');
+     * 
+     * Then pass this token to your JavaScript client:
+     * const client = new LaravelSocketClient({
+     *     url: 'ws://localhost:8080',
+     *     token: token // Use the server-generated token
+     * });
+     */
+    LaravelSocketClient.generateProperTokenExample = function() {
+        return {
+            laravel_example: `
+// In your Laravel controller:
+use Firebase\\JWT\\JWT;
+
+public function generateSocketToken() {
+    $payload = [
+        'user_id' => auth()->id(),
+        'username' => auth()->user()->name,
+        'email' => auth()->user()->email,
+        'iat' => time(),
+        'exp' => time() + (60 * 60)
+    ];
+    
+    $jwtSecret = env('JWT_SECRET'); // Same as Go server
+    return JWT::encode($payload, $jwtSecret, 'HS256');
+}`,
+            javascript_usage: `
+// In your JavaScript:
+fetch('/api/socket-token')
+    .then(response => response.json())
+    .then(data => {
+        const client = new LaravelSocketClient({
+            url: 'ws://localhost:8080',
+            token: data.token
+        });
+    });`
+        };
     };
 
     LaravelSocketClient.parseMessage = function(data) {

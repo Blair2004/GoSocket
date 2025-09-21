@@ -39,8 +39,8 @@ client management, and Laravel event integration.`,
 
 func init() {
 	rootCmd.Flags().StringVarP(&port, "port", "p", "", "Port to run the server on (default: 8080 or SOCKET_PORT env var)")
-	rootCmd.Flags().StringVarP(&jwtSecret, "token", "t", "", "JWT secret for authentication (default: JWT_SECRET env var)")
-	rootCmd.Flags().StringVar(&httpToken, "http-token", "", "HTTP API authentication token (required for API access)")
+	rootCmd.Flags().StringVarP(&jwtSecret, "jwt-secret", "j", "", "JWT secret for authentication (default: JWT_SECRET env var)")
+	rootCmd.Flags().StringVar(&httpToken, "server-token", "", "HTTP API authentication token (required for API access)")
 	rootCmd.Flags().StringVarP(&workingDir, "dir", "d", "", "Working directory for Laravel commands (default: LARAVEL_PATH env var)")
 	rootCmd.Flags().StringVar(&phpBinary, "php", "", "PHP binary path (default: 'php' or PHP_BINARY env var)")
 	rootCmd.Flags().StringVar(&laravelCmd, "command", "", "Laravel artisan command to execute (default: 'socket:handle' or LARAVEL_COMMAND env var)")

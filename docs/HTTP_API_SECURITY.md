@@ -10,19 +10,19 @@ When starting the socket server, you must provide an HTTP API token:
 
 ```bash
 # Using command line flag
-./bin/socket-server --http-token "your-secure-token-here"
+./bin/socket-server --server-token "your-secure-token-here"
 
 # Using environment variable
 export HTTP_TOKEN="your-secure-token-here"
 ./bin/socket-server
 
 # Using both JWT token (for WebSocket) and HTTP token
-./bin/socket-server --token "jwt-secret" --http-token "http-api-token"
+./bin/socket-server --jwt-secret "jwt-secret" --server-token "http-api-token"
 ```
 
 ### Configuration Options
 
-- `--http-token`: HTTP API authentication token (required for API access)
+- `--server-token`: HTTP API authentication token (required for API access)
 - Environment variable: `HTTP_TOKEN`
 
 The server will refuse to start if no HTTP token is provided.
@@ -51,20 +51,20 @@ The CLI client now requires the HTTP token for all API operations:
 
 ```bash
 # Using command line flag
-./bin/socket --token "your-secure-token-here" health
+./bin/socket --server-token "your-secure-token-here" health
 
 # Using environment variable
 export HTTP_TOKEN="your-secure-token-here"
 ./bin/socket health
 
 # Send a message with authentication
-./bin/socket --token "your-token" send --channel "orders" --data '{"message": "Hello"}'
+./bin/socket --server-token "your-token" send --channel "orders" --data '{"message": "Hello"}'
 
 # List clients with authentication
-./bin/socket --token "your-token" list clients
+./bin/socket --server-token "your-token" list clients
 
 # List channels with authentication
-./bin/socket --token "your-token" list channels
+./bin/socket --server-token "your-token" list channels
 ```
 
 ### HTTP Request Format
@@ -146,7 +146,7 @@ If you're upgrading from a version without HTTP authentication:
 
 2. Update your server startup scripts to include the token:
    ```bash
-   ./bin/socket-server --http-token "$HTTP_TOKEN"
+   ./bin/socket-server --server-token "$HTTP_TOKEN"
    ```
 
 3. Update any existing API clients to include the Authorization header:
@@ -164,7 +164,7 @@ If you're upgrading from a version without HTTP authentication:
    ./bin/socket health
    
    # New way (required)
-   ./bin/socket --token "$HTTP_TOKEN" health
+   ./bin/socket --server-token "$HTTP_TOKEN" health
    ```
 
 ## Logging
@@ -177,5 +177,5 @@ The server logs authentication attempts:
 Enable debug logging to see successful authentications:
 ```bash
 export SOCKET_DEBUG=true
-./bin/socket-server --http-token "your-token"
+./bin/socket-server --server-token "your-token"
 ```

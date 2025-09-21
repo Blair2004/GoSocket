@@ -35,7 +35,7 @@ export PATH=/usr/local/go/bin:$PATH
 
 ```bash
 # Using command-line options (HTTP token is required)
-./bin/socket-server --port 8080 --token "your-jwt-secret" --http-token "your-api-token" --dir /path/to/laravel --php /usr/bin/php8.2 --command "socket:handle"
+./bin/socket-server --port 8080 --jwt-secret "your-jwt-secret" --server-token "your-api-token" --dir /path/to/laravel --php /usr/bin/php8.2 --command "socket:handle"
 
 # Or using environment variables (optional)
 export SOCKET_PORT=8080
@@ -52,7 +52,7 @@ export HTTP_TOKEN="fallback-api-token"
 ./bin/socket-server --port 9000 --dir /var/www/laravel --command "custom:socket-handler"
 ```
 
-**Security Note**: The `--http-token` parameter is required for HTTP API security. Generate a secure token:
+**Security Note**: The `--server-token` parameter is required for HTTP API security. Generate a secure token:
 ```bash
 export HTTP_TOKEN="$(openssl rand -hex 32)"
 ```
@@ -145,15 +145,15 @@ event(new OrderCreated($order));
 ./bin/socket-server --help
 
 # Start with custom configuration
-./bin/socket-server --port 9000 --token "my-secret-key" --dir /var/www/laravel --php /usr/bin/php8.2 --command "socket:handle"
+./bin/socket-server --port 9000 --jwt-secret "my-secret-key" --dir /var/www/laravel --php /usr/bin/php8.2 --command "socket:handle"
 
 # Short form flags (where available)
-./bin/socket-server -p 9000 -t "my-secret-key" -d /var/www/laravel
+./bin/socket-server -p 9000 -j "my-secret-key" -d /var/www/laravel
 ```
 
 Available flags:
 - `--port, -p`: Server port (default: 8080 or SOCKET_PORT env var)
-- `--token, -t`: JWT secret for authentication (default: JWT_SECRET env var)
+- `--jwt-secret, -j`: JWT secret for authentication (default: JWT_SECRET env var)
 - `--dir, -d`: Working directory for Laravel commands (default: LARAVEL_PATH env var or current directory)
 - `--php`: PHP binary path (default: 'php' or PHP_BINARY env var)
 - `--command`: Laravel artisan command to execute (default: 'socket:handle' or LARAVEL_COMMAND env var)
@@ -297,10 +297,10 @@ LARAVEL_COMMAND=socket:handle
 
 ```bash
 # Send from JSON file (with authentication)
-./bin/socket --token "your-api-token" send --file /path/to/message.json
+./bin/socket --server-token "your-api-token" send --file /path/to/message.json
 
 # Send with flags (with authentication)
-./bin/socket --token "your-api-token" send --channel "notifications" --event "alert" --data '{"message":"Server maintenance"}'
+./bin/socket --server-token "your-api-token" send --channel "notifications" --event "alert" --data '{"message":"Server maintenance"}'
 
 # Using environment variable for token
 export HTTP_TOKEN="your-api-token"
@@ -311,16 +311,16 @@ export HTTP_TOKEN="your-api-token"
 
 ```bash
 # List all clients
-./bin/socket --token "your-api-token" list clients
+./bin/socket --server-token "your-api-token" list clients
 
 # List all channels
-./bin/socket --token "your-api-token" list channels
+./bin/socket --server-token "your-api-token" list channels
 
 # Kick a client
-./bin/socket --token "your-api-token" kick client-id
+./bin/socket --server-token "your-api-token" kick client-id
 
 # Check server health
-./bin/socket --token "your-api-token" health
+./bin/socket --server-token "your-api-token" health
 
 # Using environment variable for all commands
 export HTTP_TOKEN="your-api-token"

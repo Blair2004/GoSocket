@@ -73,7 +73,7 @@ var healthCmd = &cobra.Command{
 func init() {
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&serverURL, "server", "http://localhost:8080", "Socket server URL")
-	rootCmd.PersistentFlags().StringVar(&httpToken, "token", os.Getenv("HTTP_TOKEN"), "HTTP API authentication token (required)")
+	rootCmd.PersistentFlags().StringVar(&httpToken, "server-token", os.Getenv("HTTP_TOKEN"), "HTTP API authentication token (required)")
 	rootCmd.PersistentFlags().BoolVar(&insecureSkipVerify, "insecure", false, "Skip TLS certificate verification (for development/self-signed certificates)")
 
 	// Send command flags
@@ -126,7 +126,7 @@ func createRequest(method, url string, body io.Reader) (*http.Request, error) {
 // checkToken validates that the HTTP token is provided
 func checkToken() {
 	if httpToken == "" {
-		fmt.Println("Error: HTTP API token is required. Use --token flag or set HTTP_TOKEN environment variable.")
+		fmt.Println("Error: HTTP API token is required. Use --server-token flag or set HTTP_TOKEN environment variable.")
 		os.Exit(1)
 	}
 }

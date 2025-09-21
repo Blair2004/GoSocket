@@ -15,7 +15,7 @@ echo
 
 # Test 1: Try to start server without HTTP token (should fail)
 echo "Test 1: Starting server without HTTP token (should fail)..."
-if ./bin/socket-server --token "$JWT_SECRET" 2>/dev/null; then
+if ./bin/socket-server --jwt-secret "$JWT_SECRET" 2>/dev/null; then
     echo "❌ FAIL: Server should not start without HTTP token"
 else
     echo "✅ PASS: Server correctly refuses to start without HTTP token"
@@ -33,7 +33,7 @@ echo
 
 # Test 3: Start server with proper tokens (in background)
 echo "Test 3: Starting server with proper authentication..."
-./bin/socket-server --token "$JWT_SECRET" --http-token "$HTTP_TOKEN" --port 18080 > server.log 2>&1 &
+./bin/socket-server --jwt-secret "$JWT_SECRET" --server-token "$HTTP_TOKEN" --port 18080 > server.log 2>&1 &
 SERVER_PID=$!
 sleep 2
 
@@ -71,7 +71,7 @@ if ps -p $SERVER_PID > /dev/null; then
     # Test 7: Try CLI with correct token (should succeed)
     echo
     echo "Test 7: CLI with correct token (should succeed)..."
-    if ./bin/socket --server http://localhost:18080 --token "$HTTP_TOKEN" health | grep -q "Server Status"; then
+    if ./bin/socket --server http://localhost:18080 --server-token "$HTTP_TOKEN" health | grep -q "Server Status"; then
         echo "✅ PASS: CLI works with valid token"
     else
         echo "❌ FAIL: CLI should work with valid token"
@@ -96,6 +96,6 @@ echo "2. Protects all /api/* endpoints with Bearer token authentication"
 echo "3. Provides secure CLI access with token validation"
 echo "4. Logs authentication attempts for security monitoring"
 echo
-echo "Use: ./bin/socket-server --http-token 'your-token' to start the server"
-echo "Use: ./bin/socket --token 'your-token' to use the CLI"
+echo "Use: ./bin/socket-server --server-token 'your-token' to start the server"
+echo "Use: ./bin/socket --server-token 'your-token' to use the CLI"
 echo "Or set HTTP_TOKEN environment variable for both"

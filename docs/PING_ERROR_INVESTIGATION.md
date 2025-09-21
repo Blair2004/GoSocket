@@ -132,7 +132,7 @@ With these improvements:
 ## Testing
 
 To verify the fix:
-1. Start the server: `./bin/socket-server --port 8085 --token test-jwt-secret`
+1. Start the server: `./bin/socket-server --port 8085 --jwt-secret test-jwt-secret`
 2. Connect multiple clients and disconnect them abruptly
 3. Monitor logs for "Failed to send ping" errors
 4. Errors should now be rare and only occur for genuine network issues
