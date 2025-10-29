@@ -26,6 +26,7 @@ var (
 	phpBinary  string
 	laravelCmd string
 	tempDir    string
+	webDir     string
 )
 
 var rootCmd = &cobra.Command{
@@ -45,12 +46,13 @@ func init() {
 	rootCmd.Flags().StringVar(&phpBinary, "php", "", "PHP binary path (default: 'php' or PHP_BINARY env var)")
 	rootCmd.Flags().StringVar(&laravelCmd, "command", "", "Laravel artisan command to execute (default: 'socket:handle' or LARAVEL_COMMAND env var)")
 	rootCmd.Flags().StringVar(&tempDir, "temp", "", "Temporary directory for payload files (default: system temp/socket-server-payloads or SOCKET_TEMP_DIR env var)")
+	rootCmd.Flags().StringVar(&webDir, "web", "", "Web directory for static files (default: ./web or WEB_DIR env var)")
 }
 
 func runServer(cmd *cobra.Command, args []string) {
 	// Load configuration
 	cfg := config.New()
-	cfg.LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary, laravelCmd, tempDir)
+	cfg.LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary, laravelCmd, tempDir, webDir)
 
 	// Validate configuration
 	if err := cfg.Validate(); err != nil {
@@ -121,7 +123,8 @@ func runServer(cmd *cobra.Command, args []string) {
 	api.HandleFunc("/broadcast", httpAuth.AuthenticateFunc(httpHandlers.Broadcast)).Methods("POST")
 
 	// Static file serving for admin interface (no authentication required)
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/")))
+	logger.Info("Serving static files from: %s", cfg.WebDir)
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir(cfg.WebDir)))
 
 	// Start server
 	logger.Info("Socket server starting on port %s", cfg.Port)

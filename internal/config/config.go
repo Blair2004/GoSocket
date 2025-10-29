@@ -14,6 +14,7 @@ type Config struct {
 	PHPBinary  string
 	LaravelCmd string
 	TempDir    string
+	WebDir     string
 	Debug      bool
 }
 
@@ -27,12 +28,13 @@ func New() *Config {
 		PHPBinary:  getEnv("PHP_BINARY", "php"),
 		LaravelCmd: getEnv("LARAVEL_COMMAND", "socket:handle"),
 		TempDir:    getEnv("SOCKET_TEMP_DIR", filepath.Join(os.TempDir(), "socket-server-payloads")),
+		WebDir:     getEnv("WEB_DIR", "./web"),
 		Debug:      getEnv("SOCKET_DEBUG", "false") == "true",
 	}
 }
 
 // LoadFromFlags updates configuration from command line flags
-func (c *Config) LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary, laravelCmd, tempDir string) {
+func (c *Config) LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary, laravelCmd, tempDir, webDir string) {
 	if port != "" {
 		c.Port = port
 	}
@@ -53,6 +55,9 @@ func (c *Config) LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary
 	}
 	if tempDir != "" {
 		c.TempDir = tempDir
+	}
+	if webDir != "" {
+		c.WebDir = webDir
 	}
 }
 

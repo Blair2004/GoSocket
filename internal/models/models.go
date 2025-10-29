@@ -148,6 +148,15 @@ func (c *Client) AddToChannel(channelName string) {
 func (c *Client) AddToChannelWithMetadata(channelName string, data interface{}) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	
+	// Safety check - ensure maps are initialized
+	if c.Channels == nil {
+		c.Channels = make(map[string]bool)
+	}
+	if c.ChannelMetadata == nil {
+		c.ChannelMetadata = make(map[string]*ChannelMetadata)
+	}
+	
 	c.Channels[channelName] = true
 	c.ChannelMetadata[channelName] = &ChannelMetadata{
 		Data:     data,

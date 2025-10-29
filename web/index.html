@@ -207,9 +207,12 @@
                 </div>
                 <div class="status-item">
                     <div class="status-value" id="server-status">
-                        <span class="offline-indicator"></span>Checking...
+                        <span class="offline-indicator"></span>Connecting...
                     </div>
                     <div class="status-label">Server Status</div>
+                </div>
+                <div class="status-item">
+                    <button class="btn" onclick="showTokenConfig()" style="font-size: 0.9em;">⚙️ Configure Token</button>
                 </div>
             </div>
         </div>
@@ -236,7 +239,7 @@
             </div>
         </div>
         
-        <div class="send-message">
+                <div class="send-message">
             <h2>Send Message</h2>
             <form id="message-form">
                 <div class="form-group">
@@ -245,7 +248,12 @@
                 </div>
                 <div class="form-group">
                     <label for="event">Event:</label>
-                    <input type="text" id="event" name="event" value="broadcast" required>
+                    <select id="event" name="event">
+                        <option value="broadcast">broadcast</option>
+                        <option value="notification">notification</option>
+                        <option value="alert">alert</option>
+                        <option value="custom">custom</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="message-data">Data (JSON):</label>
@@ -256,12 +264,82 @@
         </div>
     </div>
 
+    <!-- Token Configuration Modal -->
+    <div id="token-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 500px;">
+            <h2 style="margin-bottom: 20px;">API Token Configuration</h2>
+            <p style="color: #666; margin-bottom: 15px;">Enter your server API token to authenticate requests:</p>
+            <div class="form-group">
+                <label for="api-token">Server Token:</label>
+                <input type="password" id="api-token" placeholder="Enter your --server-token value" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn" onclick="saveToken()" style="flex: 1;">Save Token</button>
+                <button class="btn" onclick="hideTokenConfig()" style="flex: 1; background: #6c757d;">Cancel</button>
+            </div>
+            <p style="margin-top: 15px; font-size: 0.85em; color: #999;">
+                Token is stored in your browser's local storage and never sent to any external server.
+            </p>
+        </div>
+    </div>
+    </div>
+
     <script>
         const API_BASE = window.location.origin;
         
+        // Token management
+        function getToken() {
+            return localStorage.getItem('api_token') || '';
+        }
+        
+        function showTokenConfig() {
+            const token = getToken();
+            document.getElementById('api-token').value = token;
+            document.getElementById('token-modal').style.display = 'block';
+        }
+        
+        function hideTokenConfig() {
+            document.getElementById('token-modal').style.display = 'none';
+        }
+        
+        function saveToken() {
+            const token = document.getElementById('api-token').value.trim();
+            if (token) {
+                localStorage.setItem('api_token', token);
+                alert('Token saved successfully!');
+                hideTokenConfig();
+                // Reload data with new token
+                loadHealth();
+                loadClients();
+                loadChannels();
+            } else {
+                alert('Please enter a valid token');
+            }
+        }
+        
+        // Helper to get auth headers
+        function getAuthHeaders() {
+            const token = getToken();
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            return headers;
+        }
+        
         async function loadHealth() {
             try {
-                const response = await fetch(`${API_BASE}/api/health`);
+                const response = await fetch(`${API_BASE}/api/health`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.status === 401) {
+                    showTokenConfig();
+                    throw new Error('Unauthorized - please configure your API token');
+                }
+                
                 const data = await response.json();
                 
                 document.getElementById('client-count').textContent = data.clients;
@@ -281,7 +359,15 @@
         
         async function loadClients() {
             try {
-                const response = await fetch(`${API_BASE}/api/clients`);
+                const response = await fetch(`${API_BASE}/api/clients`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.status === 401) {
+                    showTokenConfig();
+                    return;
+                }
+                
                 const data = await response.json();
                 
                 const clientList = document.getElementById('client-list');
@@ -312,7 +398,15 @@
         
         async function loadChannels() {
             try {
-                const response = await fetch(`${API_BASE}/api/channels`);
+                const response = await fetch(`${API_BASE}/api/channels`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.status === 401) {
+                    showTokenConfig();
+                    return;
+                }
+                
                 const data = await response.json();
                 
                 const channelList = document.getElementById('channel-list');
@@ -348,7 +442,8 @@
             
             try {
                 const response = await fetch(`${API_BASE}/api/clients/${clientId}/kick`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: getAuthHeaders()
                 });
                 
                 if (response.ok) {
@@ -382,9 +477,7 @@
             try {
                 const response = await fetch(`${API_BASE}/api/broadcast`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({
                         channel: channel,
                         event: event,
