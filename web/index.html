@@ -190,6 +190,170 @@
             border-radius: 50%;
             margin-right: 5px;
         }
+        
+        /* Tabs */
+        .tabs {
+            background: white;
+            padding: 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            background: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab-button:hover {
+            background: #f8f9fa;
+            color: #333;
+        }
+        
+        .tab-button.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+            background: #f8f9fa;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Message History */
+        .message-log {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            height: 500px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .message-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: white;
+            border-left: 3px solid #007bff;
+            border-radius: 4px;
+        }
+        
+        .message-timestamp {
+            color: #666;
+            font-size: 0.85em;
+        }
+        
+        .message-channel {
+            color: #007bff;
+            font-weight: bold;
+        }
+        
+        .message-event {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .message-data {
+            margin-top: 5px;
+            padding: 5px;
+            background: #f8f9fa;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        /* Server Logs */
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 4px;
+            padding: 15px;
+            height: 600px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+        
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+        
+        .log-timestamp {
+            color: #858585;
+        }
+        
+        .log-level-INFO {
+            color: #4ec9b0;
+        }
+        
+        .log-level-ERROR {
+            color: #f48771;
+            font-weight: bold;
+        }
+        
+        .log-level-WARN {
+            color: #dcdcaa;
+        }
+        
+        .log-level-DEBUG {
+            color: #858585;
+        }
+        
+        .log-message {
+            color: #d4d4d4;
+        }
+        
+        .channel-selector {
+            margin-bottom: 20px;
+        }
+        
+        .channel-selector select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 300px;
+        }
+        
+        .ws-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+        
+        .ws-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .ws-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
     </style>
 </head>
 <body>
@@ -217,50 +381,139 @@
             </div>
         </div>
         
-        <div class="grid">
-            <div class="card">
-                <h2>
-                    Connected Clients
-                    <button class="refresh-btn" onclick="loadClients()">Refresh</button>
-                </h2>
-                <div class="client-list" id="client-list">
-                    <div>Loading...</div>
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+                <button class="tab-button" onclick="switchTab('history')">📜 Message History</button>
+                <button class="tab-button" onclick="switchTab('logs')">📋 Server Logs</button>
+            </div>
+            
+            <!-- Dashboard Tab -->
+            <div id="dashboard-tab" class="tab-content active">
+                <div class="grid">
+                    <div class="card">
+                        <h2>
+                            Connected Clients
+                            <button class="refresh-btn" onclick="loadClients()">Refresh</button>
+                        </h2>
+                        <div class="client-list" id="client-list">
+                            <div>Loading...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h2>
+                            Active Channels
+                            <button class="refresh-btn" onclick="loadChannels()">Refresh</button>
+                        </h2>
+                        <div class="channel-list" id="channel-list">
+                            <div>Loading...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="send-message">
+                    <h2>Send Message</h2>
+                    <form id="message-form">
+                        <div class="form-group">
+                            <label for="channel">Channel:</label>
+                            <input type="text" id="channel" name="channel" placeholder="Enter channel name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="event">Event:</label>
+                            <select id="event" name="event">
+                                <option value="broadcast">broadcast</option>
+                                <option value="notification">notification</option>
+                                <option value="alert">alert</option>
+                                <option value="custom">custom</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="message-data">Data (JSON):</label>
+                            <textarea id="message-data" name="data" placeholder='{"message": "Hello World"}'></textarea>
+                        </div>
+                        <button type="submit" class="btn">Send Message</button>
+                    </form>
                 </div>
             </div>
             
-            <div class="card">
-                <h2>
-                    Active Channels
-                    <button class="refresh-btn" onclick="loadChannels()">Refresh</button>
-                </h2>
-                <div class="channel-list" id="channel-list">
-                    <div>Loading...</div>
+            <!-- History Tab -->
+            <div id="history-tab" class="tab-content">
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; height: calc(100vh - 300px);">
+                    <!-- Left Panel: Channel Connection & Send Message -->
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <!-- Channel Connection Section -->
+                        <div class="card" style="flex: 0 0 auto;">
+                            <h3 style="margin-bottom: 15px;">📡 Channel Connection</h3>
+                            <div class="form-group">
+                                <label for="monitor-channel-select"><strong>Select Channel:</strong></label>
+                                <select id="monitor-channel-select">
+                                    <option value="">-- Select a channel --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="channel-metadata"><strong>Metadata (JSON):</strong></label>
+                                <textarea id="channel-metadata" rows="4" placeholder='{"user_id": 123, "role": "admin"}'></textarea>
+                                <small style="color: #666; display: block; margin-top: 5px;">
+                                    Optional JSON metadata to send when joining the channel
+                                </small>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn" onclick="connectToChannel()" style="flex: 1;">Connect</button>
+                                <button class="btn" onclick="disconnectMonitorWebSocket()" style="flex: 1; background: #dc3545;">Disconnect</button>
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <span id="ws-status" class="ws-status ws-disconnected">Disconnected</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Send Message Section -->
+                        <div class="card" style="flex: 1 1 auto; display: flex; flex-direction: column;">
+                            <h3 style="margin-bottom: 15px;">✉️ Send Message</h3>
+                            <form id="channel-message-form" onsubmit="return false;" style="flex: 1; display: flex; flex-direction: column;">
+                                <div class="form-group">
+                                    <label for="channel-message-event"><strong>Event:</strong></label>
+                                    <input type="text" id="channel-message-event" placeholder="broadcast" value="broadcast">
+                                </div>
+                                <div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
+                                    <label for="channel-message-data"><strong>Message Data (JSON):</strong></label>
+                                    <textarea id="channel-message-data" placeholder='{"message": "Hello!"}'  style="flex: 1; min-height: 120px;"></textarea>
+                                </div>
+                                <button type="button" class="btn" onclick="sendChannelMessage()">Send to Channel</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Panel: Message History -->
+                    <div class="card" style="display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0;">📜 Message History</h3>
+                            <button class="btn" onclick="clearMessageHistory()" style="padding: 8px 15px; font-size: 0.85em;">Clear History</button>
+                        </div>
+                        <div class="message-log" id="message-log" style="flex: 1;">
+                            <div style="color: #999; text-align: center; padding: 50px 0;">
+                                Connect to a channel to start monitoring messages
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-        
-                <div class="send-message">
-            <h2>Send Message</h2>
-            <form id="message-form">
-                <div class="form-group">
-                    <label for="channel">Channel:</label>
-                    <input type="text" id="channel" name="channel" placeholder="Enter channel name" required>
+            
+            <!-- Logs Tab -->
+            <div id="logs-tab" class="tab-content">
+                <div style="margin-bottom: 15px;">
+                    <button class="btn" onclick="loadServerLogs()">Refresh Logs</button>
+                    <button class="btn" onclick="clearLogDisplay()" style="background: #6c757d; margin-left: 10px;">Clear Display</button>
+                    <label style="margin-left: 20px;">
+                        <input type="checkbox" id="auto-refresh-logs" onchange="toggleAutoRefreshLogs()" checked>
+                        Auto-refresh (every 5s)
+                    </label>
                 </div>
-                <div class="form-group">
-                    <label for="event">Event:</label>
-                    <select id="event" name="event">
-                        <option value="broadcast">broadcast</option>
-                        <option value="notification">notification</option>
-                        <option value="alert">alert</option>
-                        <option value="custom">custom</option>
-                    </select>
+                <div class="log-container" id="log-container">
+                    <div style="color: #858585;">Loading server logs...</div>
                 </div>
-                <div class="form-group">
-                    <label for="message-data">Data (JSON):</label>
-                    <textarea id="message-data" name="data" placeholder='{"message": "Hello World"}'></textarea>
-                </div>
-                <button type="submit" class="btn">Send Message</button>
-            </form>
+            </div>
         </div>
     </div>
 
@@ -286,6 +539,32 @@
 
     <script>
         const API_BASE = window.location.origin;
+        let monitorWs = null;
+        let currentMonitorChannel = null;
+        let messageHistory = [];
+        let logRefreshInterval = null;
+        
+        // Tab Management
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+            
+            // Load data for specific tabs
+            if (tabName === 'history') {
+                loadChannelsForMonitoring();
+            } else if (tabName === 'logs') {
+                loadServerLogs();
+            }
+        }
         
         // Token management
         function getToken() {
@@ -498,6 +777,344 @@
             }
         });
         
+        // WebSocket Message Monitoring
+        async function loadChannelsForMonitoring() {
+            try {
+                const response = await fetch(`${API_BASE}/api/channels`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.status === 401) {
+                    showTokenConfig();
+                    return;
+                }
+                
+                const data = await response.json();
+                const select = document.getElementById('monitor-channel-select');
+                
+                // Clear and repopulate
+                select.innerHTML = '<option value="">-- Select a channel --</option>';
+                Object.keys(data).forEach(channelName => {
+                    const option = document.createElement('option');
+                    option.value = channelName;
+                    option.textContent = channelName;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading channels for monitoring:', error);
+            }
+        }
+        
+        function changeMonitorChannel() {
+            // This function is now replaced by connectToChannel
+            // Keeping for backward compatibility if needed
+        }
+        
+        function connectToChannel() {
+            const channel = document.getElementById('monitor-channel-select').value;
+            const metadataText = document.getElementById('channel-metadata').value.trim();
+            
+            if (!channel) {
+                alert('Please select a channel first');
+                return;
+            }
+            
+            // Validate metadata JSON if provided
+            let metadata = null;
+            if (metadataText) {
+                try {
+                    metadata = JSON.parse(metadataText);
+                } catch (error) {
+                    alert('Invalid JSON in metadata field. Please correct it or leave it empty.');
+                    return;
+                }
+            }
+            
+            currentMonitorChannel = channel;
+            connectMonitorWebSocket(channel, metadata);
+        }
+        
+        function connectMonitorWebSocket(channel, metadata = null) {
+            // Disconnect existing connection
+            if (monitorWs) {
+                monitorWs.close();
+            }
+            
+            // Create WebSocket connection
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+            
+            monitorWs = new WebSocket(wsUrl);
+            
+            monitorWs.onopen = () => {
+                console.log('Monitor WebSocket connected');
+                updateWSStatus(true);
+                
+                // Join the channel with metadata
+                const joinMessage = {
+                    action: 'join_channel',
+                    channel: channel
+                };
+                
+                // Add metadata if provided
+                if (metadata) {
+                    joinMessage.metadata = metadata;
+                }
+                
+                monitorWs.send(JSON.stringify(joinMessage));
+                
+                addMessageToLog({
+                    type: 'system',
+                    message: `Connected to channel: ${channel}${metadata ? ' (with metadata)' : ''}`,
+                    timestamp: new Date()
+                });
+            };
+            
+            monitorWs.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    console.log('Received message:', message);
+                    
+                    // Only log messages from the monitored channel
+                    if (message.channel === channel || message.event === 'broadcast') {
+                        addMessageToLog(message);
+                    }
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+            
+            monitorWs.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                addMessageToLog({
+                    type: 'error',
+                    message: 'WebSocket connection error',
+                    timestamp: new Date()
+                });
+            };
+            
+            monitorWs.onclose = () => {
+                console.log('Monitor WebSocket disconnected');
+                updateWSStatus(false);
+                addMessageToLog({
+                    type: 'system',
+                    message: 'Disconnected from channel',
+                    timestamp: new Date()
+                });
+            };
+        }
+        
+        function disconnectMonitorWebSocket() {
+            if (monitorWs) {
+                monitorWs.close();
+                monitorWs = null;
+            }
+            currentMonitorChannel = null;
+            updateWSStatus(false);
+        }
+        
+        function updateWSStatus(connected) {
+            const statusEl = document.getElementById('ws-status');
+            if (connected) {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'ws-status ws-connected';
+            } else {
+                statusEl.textContent = 'Disconnected';
+                statusEl.className = 'ws-status ws-disconnected';
+            }
+        }
+        
+        function addMessageToLog(message) {
+            const logContainer = document.getElementById('message-log');
+            const timestamp = message.timestamp ? new Date(message.timestamp) : new Date();
+            
+            let messageHtml = '';
+            
+            if (message.type === 'system') {
+                messageHtml = `
+                    <div class="message-item" style="border-left-color: #6c757d;">
+                        <div class="message-timestamp">${timestamp.toLocaleTimeString()}</div>
+                        <div style="color: #6c757d; font-style: italic;">${message.message}</div>
+                    </div>
+                `;
+            } else if (message.type === 'error') {
+                messageHtml = `
+                    <div class="message-item" style="border-left-color: #dc3545;">
+                        <div class="message-timestamp">${timestamp.toLocaleTimeString()}</div>
+                        <div style="color: #dc3545; font-weight: bold;">ERROR: ${message.message}</div>
+                    </div>
+                `;
+            } else {
+                // Regular message
+                const channel = message.channel || 'Unknown';
+                const event = message.event || 'message';
+                const data = message.data ? JSON.stringify(message.data, null, 2) : '{}';
+                
+                messageHtml = `
+                    <div class="message-item">
+                        <div class="message-timestamp">${timestamp.toLocaleTimeString()}</div>
+                        <div>
+                            <span class="message-channel">${channel}</span> • 
+                            <span class="message-event">${event}</span>
+                        </div>
+                        <div class="message-data">${data}</div>
+                    </div>
+                `;
+            }
+            
+            messageHistory.push(messageHtml);
+            
+            // Keep only last 100 messages
+            if (messageHistory.length > 100) {
+                messageHistory.shift();
+            }
+            
+            logContainer.innerHTML = messageHistory.join('');
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        function clearMessageHistory() {
+            messageHistory = [];
+            document.getElementById('message-log').innerHTML = 
+                '<div style="color: #999; text-align: center; padding: 50px 0;">Message history cleared</div>';
+        }
+        
+        // Send message to the currently monitored channel
+        async function sendChannelMessage() {
+            const channel = currentMonitorChannel;
+            const event = document.getElementById('channel-message-event').value.trim();
+            const dataText = document.getElementById('channel-message-data').value.trim();
+            
+            if (!channel) {
+                alert('Please connect to a channel first');
+                return;
+            }
+            
+            if (!event) {
+                alert('Please enter an event name');
+                return;
+            }
+            
+            let data;
+            try {
+                data = dataText ? JSON.parse(dataText) : {};
+            } catch (error) {
+                alert('Invalid JSON data. Please correct it.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/broadcast`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        channel: channel,
+                        event: event,
+                        data: data
+                    })
+                });
+                
+                if (response.ok) {
+                    addMessageToLog({
+                        type: 'system',
+                        message: `Message sent to channel '${channel}' with event '${event}'`,
+                        timestamp: new Date()
+                    });
+                    // Clear the data field after successful send
+                    document.getElementById('channel-message-data').value = '';
+                } else {
+                    const errorText = await response.text();
+                    addMessageToLog({
+                        type: 'error',
+                        message: `Failed to send message: ${errorText}`,
+                        timestamp: new Date()
+                    });
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                addMessageToLog({
+                    type: 'error',
+                    message: `Error sending message: ${error.message}`,
+                    timestamp: new Date()
+                });
+            }
+        }
+        
+        // Server Logs
+        async function loadServerLogs() {
+            try {
+                const response = await fetch(`${API_BASE}/api/logs`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.status === 401) {
+                    showTokenConfig();
+                    return;
+                }
+                
+                if (response.status === 404) {
+                    document.getElementById('log-container').innerHTML = 
+                        '<div style="color: #f48771;">Server logs endpoint not yet implemented. Will be available after backend update.</div>';
+                    return;
+                }
+                
+                const data = await response.json();
+                displayLogs(data.logs || []);
+            } catch (error) {
+                console.error('Error loading server logs:', error);
+                document.getElementById('log-container').innerHTML = 
+                    '<div style="color: #f48771;">Error loading server logs. Endpoint may not be implemented yet.</div>';
+            }
+        }
+        
+        function displayLogs(logs) {
+            const container = document.getElementById('log-container');
+            
+            if (!logs || logs.length === 0) {
+                container.innerHTML = '<div style="color: #858585;">No logs available</div>';
+                return;
+            }
+            
+            const logHtml = logs.map(log => {
+                const timestamp = log.timestamp || new Date().toISOString();
+                const level = log.level || 'INFO';
+                const message = log.message || '';
+                
+                return `
+                    <div class="log-entry">
+                        <span class="log-timestamp">[${timestamp}]</span>
+                        <span class="log-level-${level}">[${level}]</span>
+                        <span class="log-message">${message}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = logHtml;
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearLogDisplay() {
+            document.getElementById('log-container').innerHTML = 
+                '<div style="color: #858585;">Log display cleared. Click "Refresh Logs" to reload.</div>';
+        }
+        
+        function toggleAutoRefreshLogs() {
+            const enabled = document.getElementById('auto-refresh-logs').checked;
+            
+            if (logRefreshInterval) {
+                clearInterval(logRefreshInterval);
+                logRefreshInterval = null;
+            }
+            
+            if (enabled) {
+                logRefreshInterval = setInterval(() => {
+                    if (document.getElementById('logs-tab').classList.contains('active')) {
+                        loadServerLogs();
+                    }
+                }, 5000);
+            }
+        }
+        
         // Load data on page load
         loadHealth();
         loadClients();
@@ -509,6 +1126,9 @@
             loadClients();
             loadChannels();
         }, 5000);
+        
+        // Start log auto-refresh
+        toggleAutoRefreshLogs();
     </script>
 </body>
 </html>

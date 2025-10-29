@@ -121,6 +121,7 @@ func runServer(cmd *cobra.Command, args []string) {
 	api.HandleFunc("/channels/{channel}/clients", httpAuth.AuthenticateFunc(httpHandlers.GetChannelClients)).Methods("GET")
 	api.HandleFunc("/clients/{client}/kick", httpAuth.AuthenticateFunc(httpHandlers.KickClient)).Methods("POST")
 	api.HandleFunc("/broadcast", httpAuth.AuthenticateFunc(httpHandlers.Broadcast)).Methods("POST")
+	api.HandleFunc("/logs", httpAuth.AuthenticateFunc(httpHandlers.GetLogs)).Methods("GET")
 
 	// Static file serving for admin interface (no authentication required)
 	logger.Info("Serving static files from: %s", cfg.WebDir)

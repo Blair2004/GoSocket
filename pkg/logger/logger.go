@@ -1,44 +1,109 @@
 package logger
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"sync"
+	"time"
 )
+
+// LogEntry represents a single log entry
+type LogEntry struct {
+	Timestamp string `json:"timestamp"`
+	Level     string `json:"level"`
+	Message   string `json:"message"`
+}
 
 // Logger wraps the standard logger with additional functionality
 type Logger struct {
 	*log.Logger
-	debug bool
+	debug      bool
+	recentLogs []LogEntry
+	logMutex   sync.RWMutex
+	maxLogs    int
 }
 
 // New creates a new logger instance
 func New(debug bool) *Logger {
 	return &Logger{
-		Logger: log.New(os.Stdout, "", log.LstdFlags),
-		debug:  debug,
+		Logger:     log.New(os.Stdout, "", log.LstdFlags),
+		debug:      debug,
+		recentLogs: make([]LogEntry, 0, 100),
+		maxLogs:    100, // Keep last 100 log entries
 	}
+}
+
+// addLog adds a log entry to recent logs
+func (l *Logger) addLog(level, message string) {
+	l.logMutex.Lock()
+	defer l.logMutex.Unlock()
+
+	entry := LogEntry{
+		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
+		Level:     level,
+		Message:   message,
+	}
+
+	l.recentLogs = append(l.recentLogs, entry)
+
+	// Keep only the most recent logs
+	if len(l.recentLogs) > l.maxLogs {
+		l.recentLogs = l.recentLogs[len(l.recentLogs)-l.maxLogs:]
+	}
+}
+
+// GetRecentLogs returns recent log entries
+func (l *Logger) GetRecentLogs() []LogEntry {
+	l.logMutex.RLock()
+	defer l.logMutex.RUnlock()
+
+	// Return a copy of the logs
+	logsCopy := make([]LogEntry, len(l.recentLogs))
+	copy(logsCopy, l.recentLogs)
+	return logsCopy
 }
 
 // Debug logs a debug message if debug mode is enabled
 func (l *Logger) Debug(format string, args ...interface{}) {
 	if l.debug {
+		msg := format
+		if len(args) > 0 {
+			msg = fmt.Sprintf(format, args...)
+		}
 		l.Printf("[DEBUG] "+format, args...)
+		l.addLog("DEBUG", msg)
 	}
 }
 
 // Info logs an info message
 func (l *Logger) Info(format string, args ...interface{}) {
+	msg := format
+	if len(args) > 0 {
+		msg = fmt.Sprintf(format, args...)
+	}
 	l.Printf("[INFO] "+format, args...)
+	l.addLog("INFO", msg)
 }
 
 // Warn logs a warning message
 func (l *Logger) Warn(format string, args ...interface{}) {
+	msg := format
+	if len(args) > 0 {
+		msg = fmt.Sprintf(format, args...)
+	}
 	l.Printf("[WARN] "+format, args...)
+	l.addLog("WARN", msg)
 }
 
 // Error logs an error message
 func (l *Logger) Error(format string, args ...interface{}) {
+	msg := format
+	if len(args) > 0 {
+		msg = fmt.Sprintf(format, args...)
+	}
 	l.Printf("[ERROR] "+format, args...)
+	l.addLog("ERROR", msg)
 }
 
 // Fatal logs a fatal message and exits

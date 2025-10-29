@@ -289,3 +289,15 @@ func (h *HTTPHandlers) Health(w http.ResponseWriter, r *http.Request) {
 		"version":  "1.0.0",
 	})
 }
+
+// GetLogs returns recent server logs
+func (h *HTTPHandlers) GetLogs(w http.ResponseWriter, r *http.Request) {
+	// Get recent logs from logger
+	logs := h.logger.GetRecentLogs()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"logs":  logs,
+		"total": len(logs),
+	})
+}
