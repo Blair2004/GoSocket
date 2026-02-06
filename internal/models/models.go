@@ -99,6 +99,12 @@ func (c *Client) SendMessage(message Message) error {
 	writeTime := time.Since(writeStart)
 
 	totalTime := time.Since(start)
+	
+	// Log successful message send with details (only in development)
+	if err == nil && totalTime < 50*time.Millisecond {
+		// Only log a brief confirmation for fast sends
+		_ = writeTime
+	}
 
 	// Log all operations that take more than 50ms in local environment
 	if totalTime > 50*time.Millisecond {

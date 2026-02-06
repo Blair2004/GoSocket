@@ -16,23 +16,25 @@ import (
 
 // Server manages WebSocket connections and channels
 type Server struct {
-	clients     map[string]*models.Client
-	channels    map[string]*models.Channel
-	upgrader    websocket.Upgrader
-	authService *auth.Service
-	laravelSvc  *services.LaravelService
-	logger      *logger.Logger
-	mutex       sync.RWMutex
+	clients         map[string]*models.Client
+	channels        map[string]*models.Channel
+	upgrader        websocket.Upgrader
+	authService     *auth.Service
+	laravelSvc      *services.LaravelService
+	logger          *logger.Logger
+	mutex           sync.RWMutex
+	performanceLogs bool
 }
 
 // New creates a new WebSocket server
-func New(authService *auth.Service, laravelSvc *services.LaravelService, logger *logger.Logger) *Server {
+func New(authService *auth.Service, laravelSvc *services.LaravelService, logger *logger.Logger, performanceLogs bool) *Server {
 	return &Server{
-		clients:     make(map[string]*models.Client),
-		channels:    make(map[string]*models.Channel),
-		authService: authService,
-		laravelSvc:  laravelSvc,
-		logger:      logger,
+		clients:         make(map[string]*models.Client),
+		channels:        make(map[string]*models.Channel),
+		authService:     authService,
+		laravelSvc:      laravelSvc,
+		logger:          logger,
+		performanceLogs: performanceLogs,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allow all origins for now
@@ -60,9 +62,21 @@ func (s *Server) HandleConnection(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
+<<<<<<< HEAD
 	client := models.NewClient(uuid.New().String(), conn)
 	client.RemoteAddr = r.RemoteAddr
 	client.UserAgent = r.UserAgent()
+=======
+	client := &models.Client{
+		ID:              uuid.New().String(),
+		Conn:            conn,
+		Channels:        make(map[string]bool),
+		ChannelMetadata: make(map[string]*models.ChannelMetadata),
+		LastSeen:        time.Now(),
+		RemoteAddr:      r.RemoteAddr,
+		UserAgent:       r.UserAgent(),
+	}
+>>>>>>> eb4fa4f (WIP)
 
 	s.mutex.Lock()
 	s.clients[client.ID] = client
@@ -162,7 +176,9 @@ func (s *Server) KickClient(clientID string) error {
 // BroadcastToChannel sends a message to all clients in a channel
 func (s *Server) BroadcastToChannel(channelName string, message models.Message) {
 	start := time.Now()
-	s.logger.Info("📺 BroadcastToChannel started for channel: %s", channelName)
+	s.logger.Debug("📺 BroadcastToChannel started for channel: %s", channelName)
+	s.logger.Debug("📦 Message details: Event=%s, Data=%+v, UserID=%s, Username=%s", 
+		message.Event, message.Data, message.UserID, message.Username)
 
 	lookupStart := time.Now()
 	channel, exists := s.GetChannel(channelName)
@@ -170,13 +186,17 @@ func (s *Server) BroadcastToChannel(channelName string, message models.Message) 
 		s.logger.Warn("Channel %s not found for broadcast", channelName)
 		return
 	}
-	lookupTime := time.Since(lookupStart)
-	s.logger.Info("⏱️ Channel lookup took: %v", lookupTime)
+	if s.performanceLogs {
+		lookupTime := time.Since(lookupStart)
+		s.logger.Debug("⏱️ Channel lookup took: %v", lookupTime)
+	}
 
 	clientsStart := time.Now()
 	clients := channel.GetClients()
-	clientsTime := time.Since(clientsStart)
-	s.logger.Info("⏱️ Getting clients took: %v", clientsTime)
+	if s.performanceLogs {
+		clientsTime := time.Since(clientsStart)
+		s.logger.Debug("⏱️ Getting clients took: %v", clientsTime)
+	}
 
 	sendStart := time.Now()
 
@@ -215,7 +235,7 @@ collectLoop:
 			} else {
 				successCount++
 			}
-			if result.duration > 10*time.Millisecond {
+			if s.performanceLogs && result.duration > 10*time.Millisecond {
 				s.logger.Warn("⚠️ Slow client send to %s took: %v", result.clientID, result.duration)
 			}
 		case <-timeout:
@@ -225,7 +245,9 @@ collectLoop:
 	}
 
 	sendTime := time.Since(sendStart)
-	s.logger.Info("⏱️ Concurrent sending to %d clients took: %v (success: %d)", len(clients), sendTime, successCount)
+	if s.performanceLogs {
+		s.logger.Debug("⏱️ Concurrent sending to %d clients took: %v (success: %d)", len(clients), sendTime, successCount)
+	}
 
 	// After collecting results, remove clients that consistently failed
 	go func() {
@@ -234,7 +256,7 @@ collectLoop:
 			case result := <-results:
 				// If a client took too long, it's likely dead - remove it
 				if result.duration > 500*time.Millisecond && result.err != nil {
-					s.logger.Info("🗑️ Removing slow/dead client: %s (took %v)", result.clientID, result.duration)
+					s.logger.Debug("🗑️ Removing slow/dead client: %s (took %v)", result.clientID, result.duration)
 					s.mutex.Lock()
 					delete(s.clients, result.clientID)
 					s.mutex.Unlock()
@@ -247,8 +269,9 @@ collectLoop:
 	}()
 
 	totalTime := time.Since(start)
-	s.logger.Info("🏁 BroadcastToChannel total time: %v", totalTime)
-	s.logger.Info("Broadcasted message to %d clients in channel %s", len(clients), channelName)
+	s.logger.Debug("🏁 BroadcastToChannel total time: %v", totalTime)
+	s.logger.Debug("Broadcasted message to %d clients in channel %s", len(clients), channelName)
+	s.logger.Debug("✅ Successfully delivered to %d/%d clients. Event: %s", successCount, len(clients), message.Event)
 }
 
 // BroadcastToAll sends a message to all connected clients
@@ -263,8 +286,10 @@ func (s *Server) BroadcastToAll(message models.Message) {
 		clients = append(clients, client)
 	}
 	s.mutex.RUnlock()
-	lockTime := time.Since(lockStart)
-	s.logger.Info("⏱️ Client collection took: %v", lockTime)
+	if s.performanceLogs {
+		lockTime := time.Since(lockStart)
+		s.logger.Info("⏱️ Client collection took: %v", lockTime)
+	}
 
 	sendStart := time.Now()
 
@@ -307,7 +332,7 @@ collectLoop:
 			} else {
 				successCount++
 			}
-			if result.duration > 10*time.Millisecond {
+			if s.performanceLogs && result.duration > 10*time.Millisecond {
 				s.logger.Warn("⚠️ Slow global client send to %s took: %v", result.clientID, result.duration)
 			}
 		case <-timeout:
@@ -317,7 +342,9 @@ collectLoop:
 	}
 
 	sendTime := time.Since(sendStart)
-	s.logger.Info("⏱️ Concurrent global sending to %d clients took: %v (success: %d)", len(clients), sendTime, successCount)
+	if s.performanceLogs {
+		s.logger.Debug("⏱️ Concurrent global sending to %d clients took: %v (success: %d)", len(clients), sendTime, successCount)
+	}
 
 	// After collecting results, remove clients that consistently failed
 	go func() {
@@ -326,7 +353,7 @@ collectLoop:
 			case result := <-results:
 				// If a client took too long, it's likely dead - remove it
 				if result.duration > 500*time.Millisecond && result.err != nil {
-					s.logger.Info("🗑️ Removing slow/dead client: %s (took %v)", result.clientID, result.duration)
+					s.logger.Debug("🗑️ Removing slow/dead client: %s (took %v)", result.clientID, result.duration)
 					s.mutex.Lock()
 					delete(s.clients, result.clientID)
 					s.mutex.Unlock()
@@ -339,14 +366,14 @@ collectLoop:
 	}()
 
 	totalTime := time.Since(start)
-	s.logger.Info("🏁 BroadcastToAll total time: %v", totalTime)
-	s.logger.Info("Broadcasted message to %d/%d clients globally", successCount, len(clients))
+	s.logger.Debug("🏁 BroadcastToAll total time: %v", totalTime)
+	s.logger.Debug("Broadcasted message to %d/%d clients globally", successCount, len(clients))
 }
 
 // BroadcastToAuthenticated sends a message to all authenticated clients
 func (s *Server) BroadcastToAuthenticated(message models.Message) {
 	start := time.Now()
-	s.logger.Info("🔐 BroadcastToAuthenticated started")
+	s.logger.Debug("🔐 BroadcastToAuthenticated started")
 
 	lockStart := time.Now()
 	s.mutex.RLock()
@@ -357,8 +384,10 @@ func (s *Server) BroadcastToAuthenticated(message models.Message) {
 		}
 	}
 	s.mutex.RUnlock()
-	lockTime := time.Since(lockStart)
-	s.logger.Info("⏱️ Authenticated client collection took: %v", lockTime)
+	if s.performanceLogs {
+		lockTime := time.Since(lockStart)
+		s.logger.Debug("⏱️ Authenticated client collection took: %v", lockTime)
+	}
 
 	sendStart := time.Now()
 
@@ -397,7 +426,7 @@ collectLoop:
 			} else {
 				successCount++
 			}
-			if result.duration > 10*time.Millisecond {
+			if s.performanceLogs && result.duration > 10*time.Millisecond {
 				s.logger.Warn("⚠️ Slow authenticated client send to %s took: %v", result.clientID, result.duration)
 			}
 		case <-timeout:
@@ -407,7 +436,9 @@ collectLoop:
 	}
 
 	sendTime := time.Since(sendStart)
-	s.logger.Info("⏱️ Concurrent authenticated sending to %d clients took: %v (success: %d)", len(clients), sendTime, successCount)
+	if s.performanceLogs {
+		s.logger.Debug("⏱️ Concurrent authenticated sending to %d clients took: %v (success: %d)", len(clients), sendTime, successCount)
+	}
 
 	// After collecting results, remove clients that consistently failed
 	go func() {
@@ -416,7 +447,7 @@ collectLoop:
 			case result := <-results:
 				// If a client took too long, it's likely dead - remove it
 				if result.duration > 500*time.Millisecond && result.err != nil {
-					s.logger.Info("🗑️ Removing slow/dead client: %s (took %v)", result.clientID, result.duration)
+					s.logger.Debug("🗑️ Removing slow/dead client: %s (took %v)", result.clientID, result.duration)
 					s.mutex.Lock()
 					delete(s.clients, result.clientID)
 					s.mutex.Unlock()
@@ -429,8 +460,8 @@ collectLoop:
 	}()
 
 	totalTime := time.Since(start)
-	s.logger.Info("🏁 BroadcastToAuthenticated total time: %v", totalTime)
-	s.logger.Info("Broadcasted message to %d authenticated clients", successCount)
+	s.logger.Debug("🏁 BroadcastToAuthenticated total time: %v", totalTime)
+	s.logger.Debug("Broadcasted message to %d authenticated clients", successCount)
 }
 
 // BroadcastToUser sends a message to all connections of a specific user

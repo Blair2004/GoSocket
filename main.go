@@ -1,7 +1,9 @@
 package main
 
 import (
+	"embed"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -18,7 +20,11 @@ import (
 	"socket-server/pkg/logger"
 )
 
+//go:embed web/*
+var webFiles embed.FS
+
 var (
+<<<<<<< HEAD
 	port       string
 	jwtSecret  string
 	httpToken  string
@@ -27,6 +33,17 @@ var (
 	laravelCmd string
 	tempDir    string
 	webDir     string
+=======
+	port            string
+	jwtSecret       string
+	httpToken       string
+	workingDir      string
+	phpBinary       string
+	laravelCmd      string
+	tempDir         string
+	performanceLogs bool
+	debug           bool
+>>>>>>> eb4fa4f (WIP)
 )
 
 var rootCmd = &cobra.Command{
@@ -46,13 +63,25 @@ func init() {
 	rootCmd.Flags().StringVar(&phpBinary, "php", "", "PHP binary path (default: 'php' or PHP_BINARY env var)")
 	rootCmd.Flags().StringVar(&laravelCmd, "command", "", "Laravel artisan command to execute (default: 'socket:handle' or LARAVEL_COMMAND env var)")
 	rootCmd.Flags().StringVar(&tempDir, "temp", "", "Temporary directory for payload files (default: system temp/socket-server-payloads or SOCKET_TEMP_DIR env var)")
+<<<<<<< HEAD
 	rootCmd.Flags().StringVar(&webDir, "web", "", "Web directory for static files (default: ./web or WEB_DIR env var)")
+=======
+	rootCmd.Flags().BoolVar(&performanceLogs, "performance-logs", false, "Enable detailed performance timing logs (default: false or PERFORMANCE_LOGS env var)")
+	rootCmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logging for verbose output (default: false or DEBUG env var)")
+>>>>>>> eb4fa4f (WIP)
 }
 
 func runServer(cmd *cobra.Command, args []string) {
 	// Load configuration
 	cfg := config.New()
+<<<<<<< HEAD
 	cfg.LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary, laravelCmd, tempDir, webDir)
+=======
+	cfg.LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary, laravelCmd, tempDir, performanceLogs)
+	if debug {
+		cfg.Debug = true
+	}
+>>>>>>> eb4fa4f (WIP)
 
 	// Validate configuration
 	if err := cfg.Validate(); err != nil {
@@ -87,6 +116,7 @@ func runServer(cmd *cobra.Command, args []string) {
 	logger.Info("PHP Binary: %s", cfg.PHPBinary)
 	logger.Info("Laravel Command: %s", cfg.LaravelCmd)
 	logger.Info("Temp Directory: %s", cfg.TempDir)
+	logger.Info("Performance Logs: %v", cfg.PerformanceLogs)
 
 	// Initialize services
 	authService := auth.New(cfg.JWTSecret)
@@ -99,10 +129,10 @@ func runServer(cmd *cobra.Command, args []string) {
 	laravelSvc.StartCleanupRoutine()
 
 	// Initialize WebSocket server
-	wsServer := websocket.New(authService, laravelSvc, logger)
+	wsServer := websocket.New(authService, laravelSvc, logger, cfg.PerformanceLogs)
 
 	// Initialize HTTP handlers
-	httpHandlers := handlers.New(wsServer, logger)
+	httpHandlers := handlers.New(wsServer, logger, cfg.PerformanceLogs)
 
 	// Initialize HTTP authentication middleware
 	httpAuth := middleware.NewHTTPAuth(cfg.HTTPToken, logger)
@@ -115,7 +145,7 @@ func runServer(cmd *cobra.Command, args []string) {
 
 	// REST API endpoints (all require authentication)
 	api := r.PathPrefix("/api").Subrouter()
-	api.HandleFunc("/health", httpAuth.AuthenticateFunc(httpHandlers.Health)).Methods("GET")
+	api.HandleFunc("/health", httpHandlers.Health).Methods("GET") // Public endpoint
 	api.HandleFunc("/clients", httpAuth.AuthenticateFunc(httpHandlers.GetClients)).Methods("GET")
 	api.HandleFunc("/channels", httpAuth.AuthenticateFunc(httpHandlers.GetChannels)).Methods("GET")
 	api.HandleFunc("/channels/{channel}/clients", httpAuth.AuthenticateFunc(httpHandlers.GetChannelClients)).Methods("GET")
@@ -124,8 +154,17 @@ func runServer(cmd *cobra.Command, args []string) {
 	api.HandleFunc("/logs", httpAuth.AuthenticateFunc(httpHandlers.GetLogs)).Methods("GET")
 
 	// Static file serving for admin interface (no authentication required)
+<<<<<<< HEAD
 	logger.Info("Serving static files from: %s", cfg.WebDir)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir(cfg.WebDir)))
+=======
+	// Serve embedded web files
+	webFS, err := fs.Sub(webFiles, "web")
+	if err != nil {
+		logger.Fatal("Failed to load embedded web files: %v", err)
+	}
+	r.PathPrefix("/").Handler(http.FileServer(http.FS(webFS)))
+>>>>>>> eb4fa4f (WIP)
 
 	// Start server
 	logger.Info("Socket server starting on port %s", cfg.Port)

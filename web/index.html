@@ -191,6 +191,7 @@
             margin-right: 5px;
         }
         
+<<<<<<< HEAD
         /* Tabs */
         .tabs {
             background: white;
@@ -296,10 +297,146 @@
         }
         
         .log-entry {
+=======
+        .settings-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            float: right;
+        }
+        
+        .settings-btn:hover {
+            background: #5a6268;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #007bff;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+        
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: #000;
+        }
+        
+        .settings-section {
+            margin-bottom: 20px;
+        }
+        
+        .settings-section h3 {
+            color: #555;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .settings-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .message-monitor {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .message-log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            margin-top: 10px;
+        }
+        
+        .message-log-entry {
+>>>>>>> eb4fa4f (WIP)
             padding: 5px 0;
             border-bottom: 1px solid #333;
         }
         
+<<<<<<< HEAD
         .log-timestamp {
             color: #858585;
         }
@@ -346,20 +483,86 @@
         }
         
         .ws-connected {
+=======
+        .message-log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .message-timestamp {
+            color: #858585;
+            margin-right: 8px;
+        }
+        
+        .message-event {
+            color: #4ec9b0;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .message-channel {
+            color: #dcdcaa;
+            margin-right: 8px;
+        }
+        
+        .message-data {
+            color: #ce9178;
+        }
+        
+        .ws-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .ws-status {
+            padding: 5px 15px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        
+        .ws-status.connected {
+>>>>>>> eb4fa4f (WIP)
             background: #d4edda;
             color: #155724;
         }
         
+<<<<<<< HEAD
         .ws-disconnected {
             background: #f8d7da;
             color: #721c24;
         }
+=======
+        .ws-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .ws-status.connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .channel-monitor-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9em;
+            min-width: 200px;
+        }
+>>>>>>> eb4fa4f (WIP)
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Socket Server Dashboard</h1>
+            <div class="header-content">
+                <h1>Socket Server Dashboard</h1>
+                <button class="settings-btn" onclick="openSettings()">⚙️ Settings</button>
+            </div>
             <div class="status">
                 <div class="status-item">
                     <div class="status-value" id="client-count">0</div>
@@ -515,6 +718,7 @@
                 </div>
             </div>
         </div>
+<<<<<<< HEAD
     </div>
 
     <!-- Token Configuration Modal -->
@@ -533,11 +737,408 @@
             <p style="margin-top: 15px; font-size: 0.85em; color: #999;">
                 Token is stored in your browser's local storage and never sent to any external server.
             </p>
+=======
+        
+        <div class="message-monitor">
+            <h2>Message Monitor</h2>
+            <div class="ws-controls">
+                <button class="btn" id="ws-connect-btn" onclick="connectWebSocket()">Connect to WebSocket</button>
+                <button class="btn" id="ws-disconnect-btn" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+                <span class="ws-status disconnected" id="ws-status">Disconnected</span>
+                <input type="text" class="channel-monitor-input" id="monitor-channel" placeholder="Channel to monitor (e.g., notifications)">
+                <button class="btn" id="join-channel-btn" onclick="joinMonitorChannel()" disabled>Join Channel</button>
+                <button class="btn" id="clear-log-btn" onclick="clearMessageLog()">Clear Log</button>
+            </div>
+            <div class="message-log" id="message-log">
+                <div style="color: #858585; font-style: italic;">Connect to WebSocket to start monitoring messages...</div>
+            </div>
+        </div>
+        
+        <div class="send-message">
+            <h2>Send Message</h2>
+            <form id="message-form">
+                <div class="form-group">
+                    <label for="channel">Channel:</label>
+                    <input type="text" id="channel" name="channel" placeholder="Enter channel name" required>
+                </div>
+                <div class="form-group">
+                    <label for="event">Event:</label>
+                    <input type="text" id="event" name="event" value="broadcast" required>
+                </div>
+                <div class="form-group">
+                    <label for="message-data">Data (JSON):</label>
+                    <textarea id="message-data" name="data" placeholder='{"message": "Hello World"}'></textarea>
+                </div>
+                <button type="submit" class="btn">Send Message</button>
+            </form>
+>>>>>>> eb4fa4f (WIP)
         </div>
     </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Dashboard Settings</h2>
+                <span class="close" onclick="closeSettings()">&times;</span>
+            </div>
+            
+            <div class="settings-info">
+                Configure how the dashboard connects to your socket server. These settings are saved in your browser's local storage.
+            </div>
+            
+            <form id="settings-form">
+                <div class="settings-section">
+                    <h3>Server Connection</h3>
+                    
+                    <div class="form-group">
+                        <label for="server-url">Server URL:</label>
+                        <input 
+                            type="text" 
+                            id="server-url" 
+                            name="serverUrl" 
+                            placeholder="http://localhost:8003"
+                            required
+                        >
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            The base URL where your socket server is running (e.g., http://localhost:8003 or https://api.example.com)
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="server-token">Server Token (Optional):</label>
+                        <input 
+                            type="password" 
+                            id="server-token" 
+                            name="serverToken" 
+                            placeholder="Your server authentication token"
+                        >
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            If your server requires authentication, enter the token here
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="jwt-token">JWT Token (Optional):</label>
+                        <input 
+                            type="password" 
+                            id="jwt-token" 
+                            name="jwtToken" 
+                            placeholder="JWT token for WebSocket authentication"
+                        >
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            JWT token to authenticate the dashboard WebSocket connection (allows seeing messages from other clients)
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>Refresh Interval</h3>
+                    
+                    <div class="form-group">
+                        <label for="refresh-interval">Auto-refresh interval (seconds):</label>
+                        <input 
+                            type="number" 
+                            id="refresh-interval" 
+                            name="refreshInterval" 
+                            min="1" 
+                            max="300" 
+                            value="5"
+                            required
+                        >
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            How often to automatically refresh the dashboard data (1-300 seconds)
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" class="btn-secondary" onclick="resetSettings()">Reset to Default</button>
+                    <button type="submit" class="btn">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
+        // WebSocket connection for message monitoring
+        let monitorWs = null;
+        let monitoredChannels = new Set();
+        let heartbeatInterval = null;
+        
+        function logMessage(type, channel, event, data, timestamp) {
+            const log = document.getElementById('message-log');
+            const entry = document.createElement('div');
+            entry.className = 'message-log-entry';
+            
+            const time = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+            const channelStr = channel ? `[${channel}]` : '[global]';
+            const dataStr = typeof data === 'object' ? JSON.stringify(data) : data;
+            
+            entry.innerHTML = `
+                <span class="message-timestamp">${time}</span>
+                <span class="message-event">${event}</span>
+                <span class="message-channel">${channelStr}</span>
+                <span class="message-data">${dataStr}</span>
+            `;
+            
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+            
+            // Keep only last 200 messages
+            while (log.children.length > 200) {
+                log.removeChild(log.firstChild);
+            }
+        }
+        
+        function updateWsStatus(status) {
+            const statusEl = document.getElementById('ws-status');
+            const connectBtn = document.getElementById('ws-connect-btn');
+            const disconnectBtn = document.getElementById('ws-disconnect-btn');
+            const joinBtn = document.getElementById('join-channel-btn');
+            
+            statusEl.className = 'ws-status ' + status;
+            
+            switch(status) {
+                case 'connected':
+                    statusEl.textContent = 'Connected';
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    joinBtn.disabled = false;
+                    break;
+                case 'disconnected':
+                    statusEl.textContent = 'Disconnected';
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    joinBtn.disabled = true;
+                    break;
+                case 'connecting':
+                    statusEl.textContent = 'Connecting...';
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = true;
+                    joinBtn.disabled = true;
+                    break;
+            }
+        }
+        
+        function connectWebSocket() {
+            if (monitorWs && monitorWs.readyState === WebSocket.OPEN) {
+                return;
+            }
+            
+            updateWsStatus('connecting');
+            
+            // Get WebSocket URL from settings
+            const httpUrl = currentSettings.serverUrl;
+            const wsUrl = httpUrl.replace(/^http/, 'ws') + '/ws';
+            
+            logMessage('system', null, 'CONNECTING', `Connecting to ${wsUrl}`, null);
+            
+            monitorWs = new WebSocket(wsUrl);
+            
+            monitorWs.onopen = function() {
+                updateWsStatus('connected');
+                logMessage('system', null, 'CONNECTED', 'WebSocket connection established', null);
+                
+                // Authenticate if JWT token is provided
+                if (currentSettings.jwtToken) {
+                    const authMessage = {
+                        action: 'authenticate',
+                        token: currentSettings.jwtToken
+                    };
+                    monitorWs.send(JSON.stringify(authMessage));
+                    logMessage('system', null, 'AUTHENTICATING', 'Sending JWT authentication...', null);
+                }
+                
+                // Start heartbeat to keep connection alive
+                startHeartbeat();
+            };
+            
+            monitorWs.onmessage = function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    logMessage(
+                        'message',
+                        message.channel || null,
+                        message.event || 'message',
+                        message.data || message,
+                        message.timestamp
+                    );
+                } catch (error) {
+                    logMessage('error', null, 'PARSE_ERROR', event.data, null);
+                }
+            };
+            
+            monitorWs.onclose = function(event) {
+                updateWsStatus('disconnected');
+                logMessage('system', null, 'DISCONNECTED', `Code: ${event.code}, Reason: ${event.reason || 'none'}`, null);
+                monitoredChannels.clear();
+                stopHeartbeat();
+            };
+            
+            monitorWs.onerror = function(error) {
+                logMessage('error', null, 'ERROR', 'WebSocket error occurred', null);
+            };
+        }
+        
+        function startHeartbeat() {
+            // Send ping every 30 seconds to keep connection alive
+            heartbeatInterval = setInterval(() => {
+                if (monitorWs && monitorWs.readyState === WebSocket.OPEN) {
+                    monitorWs.send(JSON.stringify({ action: 'ping' }));
+                }
+            }, 30000);
+        }
+        
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+        }
+        
+        function disconnectWebSocket() {
+            stopHeartbeat();
+            if (monitorWs) {
+                monitorWs.close();
+                monitorWs = null;
+            }
+            monitoredChannels.clear();
+        }
+        
+        function joinMonitorChannel() {
+            const channelInput = document.getElementById('monitor-channel');
+            const channel = channelInput.value.trim();
+            
+            if (!channel) {
+                alert('Please enter a channel name');
+                return;
+            }
+            
+            if (!monitorWs || monitorWs.readyState !== WebSocket.OPEN) {
+                alert('Not connected to WebSocket');
+                return;
+            }
+            
+            const message = {
+                action: 'join_channel',
+                channel: channel,
+                data: {},
+                private: true
+            };
+            
+            monitorWs.send(JSON.stringify(message));
+            monitoredChannels.add(channel);
+            logMessage('system', channel, 'JOIN_CHANNEL', `Joining channel: ${channel}`, null);
+            channelInput.value = '';
+        }
+        
+        function clearMessageLog() {
+            const log = document.getElementById('message-log');
+            log.innerHTML = '<div style="color: #858585; font-style: italic;">Message log cleared...</div>';
+        }
+        
+        // Settings management
+        const DEFAULT_SETTINGS = {
+            serverUrl: window.location.origin,
+            serverToken: '',
+            jwtToken: '',
+            refreshInterval: 5
+        };
+        
+        let currentSettings = loadSettings();
+        let refreshIntervalId = null;
+        
+        function loadSettings() {
+            const saved = localStorage.getItem('dashboardSettings');
+            if (saved) {
+                try {
+                    return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+                } catch (e) {
+                    console.error('Error loading settings:', e);
+                    return { ...DEFAULT_SETTINGS };
+                }
+            }
+            return { ...DEFAULT_SETTINGS };
+        }
+        
+        function saveSettings(settings) {
+            localStorage.setItem('dashboardSettings', JSON.stringify(settings));
+            currentSettings = settings;
+        }
+        
+        function openSettings() {
+            document.getElementById('server-url').value = currentSettings.serverUrl;
+            document.getElementById('server-token').value = currentSettings.serverToken;
+            document.getElementById('jwt-token').value = currentSettings.jwtToken || '';
+            document.getElementById('refresh-interval').value = currentSettings.refreshInterval;
+            document.getElementById('settings-modal').style.display = 'block';
+        }
+        
+        function closeSettings() {
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+        
+        function resetSettings() {
+            if (confirm('Are you sure you want to reset all settings to default?')) {
+                saveSettings(DEFAULT_SETTINGS);
+                openSettings();
+                alert('Settings reset to default. Click "Save Settings" to apply.');
+            }
+        }
+        
+        document.getElementById('settings-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const newSettings = {
+                serverUrl: formData.get('serverUrl').replace(/\/$/, ''), // Remove trailing slash
+                serverToken: formData.get('serverToken'),
+                jwtToken: formData.get('jwtToken') || '',
+                refreshInterval: parseInt(formData.get('refreshInterval'))
+            };
+            
+            saveSettings(newSettings);
+            closeSettings();
+            
+            // Restart auto-refresh with new interval
+            setupAutoRefresh();
+            
+            // Reload data immediately with new settings
+            loadHealth();
+            loadClients();
+            loadChannels();
+            
+            alert('Settings saved successfully!');
+        });
+        
+        // Close modal when clicking outside of it
+        window.onclick = function(event) {
+            const modal = document.getElementById('settings-modal');
+            if (event.target === modal) {
+                closeSettings();
+            }
+        };
+        
+        // Get API base URL from settings
+        function getApiBase() {
+            return currentSettings.serverUrl;
+        }
+        
+        // Get headers with optional authentication
+        function getHeaders() {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (currentSettings.serverToken) {
+                headers['Authorization'] = `Bearer ${currentSettings.serverToken}`;
+            }
+            
+            return headers;
+        }
+        
         const API_BASE = window.location.origin;
         let monitorWs = null;
         let currentMonitorChannel = null;
@@ -610,6 +1211,7 @@
         
         async function loadHealth() {
             try {
+<<<<<<< HEAD
                 const response = await fetch(`${API_BASE}/api/health`, {
                     headers: getAuthHeaders()
                 });
@@ -619,6 +1221,11 @@
                     throw new Error('Unauthorized - please configure your API token');
                 }
                 
+=======
+                const response = await fetch(`${getApiBase()}/api/health`, {
+                    headers: getHeaders()
+                });
+>>>>>>> eb4fa4f (WIP)
                 const data = await response.json();
                 
                 document.getElementById('client-count').textContent = data.clients;
@@ -638,12 +1245,21 @@
         
         async function loadClients() {
             try {
+<<<<<<< HEAD
                 const response = await fetch(`${API_BASE}/api/clients`, {
                     headers: getAuthHeaders()
                 });
                 
                 if (response.status === 401) {
                     showTokenConfig();
+=======
+                const response = await fetch(`${getApiBase()}/api/clients`, {
+                    headers: getHeaders()
+                });
+                
+                if (response.status === 401) {
+                    document.getElementById('client-list').innerHTML = '<div style="color: #dc3545;">⚠️ Authentication required. Please configure your server token in Settings.</div>';
+>>>>>>> eb4fa4f (WIP)
                     return;
                 }
                 
@@ -677,12 +1293,21 @@
         
         async function loadChannels() {
             try {
+<<<<<<< HEAD
                 const response = await fetch(`${API_BASE}/api/channels`, {
                     headers: getAuthHeaders()
                 });
                 
                 if (response.status === 401) {
                     showTokenConfig();
+=======
+                const response = await fetch(`${getApiBase()}/api/channels`, {
+                    headers: getHeaders()
+                });
+                
+                if (response.status === 401) {
+                    document.getElementById('channel-list').innerHTML = '<div style="color: #dc3545;">⚠️ Authentication required. Please configure your server token in Settings.</div>';
+>>>>>>> eb4fa4f (WIP)
                     return;
                 }
                 
@@ -720,10 +1345,21 @@
             }
             
             try {
+<<<<<<< HEAD
                 const response = await fetch(`${API_BASE}/api/clients/${clientId}/kick`, {
                     method: 'POST',
                     headers: getAuthHeaders()
+=======
+                const response = await fetch(`${getApiBase()}/api/clients/${clientId}/kick`, {
+                    method: 'POST',
+                    headers: getHeaders()
+>>>>>>> eb4fa4f (WIP)
                 });
+                
+                if (response.status === 401) {
+                    alert('Authentication required. Please configure your server token in Settings.');
+                    return;
+                }
                 
                 if (response.ok) {
                     alert('Client kicked successfully');
@@ -754,15 +1390,24 @@
             }
             
             try {
-                const response = await fetch(`${API_BASE}/api/broadcast`, {
+                const response = await fetch(`${getApiBase()}/api/broadcast`, {
                     method: 'POST',
+<<<<<<< HEAD
                     headers: getAuthHeaders(),
+=======
+                    headers: getHeaders(),
+>>>>>>> eb4fa4f (WIP)
                     body: JSON.stringify({
                         channel: channel,
                         event: event,
                         data: data
                     })
                 });
+                
+                if (response.status === 401) {
+                    alert('Authentication required. Please configure your server token in Settings.');
+                    return;
+                }
                 
                 if (response.ok) {
                     alert('Message sent successfully');
@@ -777,6 +1422,7 @@
             }
         });
         
+<<<<<<< HEAD
         // WebSocket Message Monitoring
         async function loadChannelsForMonitoring() {
             try {
@@ -1113,6 +1759,22 @@
                     }
                 }, 5000);
             }
+=======
+        // Auto-refresh management
+        function setupAutoRefresh() {
+            // Clear existing interval
+            if (refreshIntervalId) {
+                clearInterval(refreshIntervalId);
+            }
+            
+            // Set up new interval based on settings
+            const intervalMs = currentSettings.refreshInterval * 1000;
+            refreshIntervalId = setInterval(() => {
+                loadHealth();
+                loadClients();
+                loadChannels();
+            }, intervalMs);
+>>>>>>> eb4fa4f (WIP)
         }
         
         // Load data on page load
@@ -1120,6 +1782,7 @@
         loadClients();
         loadChannels();
         
+<<<<<<< HEAD
         // Refresh data every 5 seconds
         setInterval(() => {
             loadHealth();
@@ -1129,6 +1792,10 @@
         
         // Start log auto-refresh
         toggleAutoRefreshLogs();
+=======
+        // Set up auto-refresh
+        setupAutoRefresh();
+>>>>>>> eb4fa4f (WIP)
     </script>
 </body>
 </html>

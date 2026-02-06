@@ -100,7 +100,7 @@ func (s *Server) handleMessage(client *models.Client, msg map[string]interface{}
 	s.laravelSvc.DispatchMessage(message, client)
 	duration := time.Since(start)
 
-	if message.Event == "ping" {
+	if s.performanceLogs && message.Event == "ping" {
 		s.logger.Info("🏓 Laravel ping dispatch took: %v", duration)
 	}
 }

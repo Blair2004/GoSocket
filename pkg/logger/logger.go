@@ -134,7 +134,12 @@ func (l *Logger) ClientAuthenticationFailed(clientID string, err error) {
 
 // MessageReceived logs an incoming message
 func (l *Logger) MessageReceived(clientID, username, action string, data interface{}) {
-	l.Info("📥 INCOMING MESSAGE from client %s (user: %s): action=%s", clientID, username, action)
+	// Only log ping messages in debug mode to reduce noise
+	if action == "ping" {
+		l.Debug("📥 INCOMING MESSAGE from client %s (user: %s): action=%s", clientID, username, action)
+	} else {
+		l.Info("📥 INCOMING MESSAGE from client %s (user: %s): action=%s", clientID, username, action)
+	}
 }
 
 // MessageSent logs an outgoing message

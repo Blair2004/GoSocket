@@ -15,15 +15,17 @@ import (
 
 // HTTPHandlers contains all HTTP handlers
 type HTTPHandlers struct {
-	wsServer *websocket.Server
-	logger   *logger.Logger
+	wsServer        *websocket.Server
+	logger          *logger.Logger
+	performanceLogs bool
 }
 
 // New creates new HTTP handlers
-func New(wsServer *websocket.Server, logger *logger.Logger) *HTTPHandlers {
+func New(wsServer *websocket.Server, logger *logger.Logger, performanceLogs bool) *HTTPHandlers {
 	return &HTTPHandlers{
-		wsServer: wsServer,
-		logger:   logger,
+		wsServer:        wsServer,
+		logger:          logger,
+		performanceLogs: performanceLogs,
 	}
 }
 
@@ -131,8 +133,10 @@ func (h *HTTPHandlers) Broadcast(w http.ResponseWriter, r *http.Request) {
 
 	decodeStart := time.Now()
 	err := json.NewDecoder(r.Body).Decode(&payload)
-	decodeTime := time.Since(decodeStart)
-	h.logger.Info("⏱️ JSON decode took: %v", decodeTime)
+	if h.performanceLogs {
+		decodeTime := time.Since(decodeStart)
+		h.logger.Info("⏱️ JSON decode took: %v", decodeTime)
+	}
 	if err != nil {
 		h.logger.Error("Failed to decode JSON payload", "error", err.Error())
 
@@ -175,8 +179,10 @@ func (h *HTTPHandlers) Broadcast(w http.ResponseWriter, r *http.Request) {
 		Data:      payload.Data,
 		Timestamp: time.Now(),
 	}
-	msgCreateTime := time.Since(msgCreateStart)
-	h.logger.Info("⏱️ Message creation took: %v", msgCreateTime)
+	if h.performanceLogs {
+		msgCreateTime := time.Since(msgCreateStart)
+		h.logger.Info("⏱️ Message creation took: %v", msgCreateTime)
+	}
 
 	// Determine broadcast type based on payload
 	typeDetectStart := time.Now()
@@ -195,8 +201,10 @@ func (h *HTTPHandlers) Broadcast(w http.ResponseWriter, r *http.Request) {
 			broadcastType = "global"
 		}
 	}
-	typeDetectTime := time.Since(typeDetectStart)
-	h.logger.Info("⏱️ Broadcast type detection took: %v", typeDetectTime)
+	if h.performanceLogs {
+		typeDetectTime := time.Since(typeDetectStart)
+		h.logger.Info("⏱️ Broadcast type detection took: %v", typeDetectTime)
+	}
 
 	broadcastStart := time.Now()
 	var responseMessage string
@@ -259,8 +267,10 @@ func (h *HTTPHandlers) Broadcast(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid broadcast_type. Must be: global, authenticated, user, user_except, client, or channel", http.StatusBadRequest)
 		return
 	}
-	broadcastTime := time.Since(broadcastStart)
-	h.logger.Info("⏱️ Broadcast operation took: %v", broadcastTime)
+	if h.performanceLogs {
+		broadcastTime := time.Since(broadcastStart)
+		h.logger.Info("⏱️ Broadcast operation took: %v", broadcastTime)
+	}
 
 	responseStart := time.Now()
 	w.Header().Set("Content-Type", "application/json")
@@ -269,11 +279,13 @@ func (h *HTTPHandlers) Broadcast(w http.ResponseWriter, r *http.Request) {
 		"message": responseMessage,
 		"type":    broadcastType,
 	})
-	responseTime := time.Since(responseStart)
-	h.logger.Info("⏱️ Response generation took: %v", responseTime)
+	if h.performanceLogs {
+		responseTime := time.Since(responseStart)
+		h.logger.Info("⏱️ Response generation took: %v", responseTime)
 
-	totalTime := time.Since(startTime)
-	h.logger.Info("🏁 Total broadcast request took: %v", totalTime)
+		totalTime := time.Since(startTime)
+		h.logger.Info("🏁 Total broadcast request took: %v", totalTime)
+	}
 }
 
 // Health returns server health status
