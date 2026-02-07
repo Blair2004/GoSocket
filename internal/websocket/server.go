@@ -62,21 +62,9 @@ func (s *Server) HandleConnection(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
-<<<<<<< HEAD
 	client := models.NewClient(uuid.New().String(), conn)
 	client.RemoteAddr = r.RemoteAddr
 	client.UserAgent = r.UserAgent()
-=======
-	client := &models.Client{
-		ID:              uuid.New().String(),
-		Conn:            conn,
-		Channels:        make(map[string]bool),
-		ChannelMetadata: make(map[string]*models.ChannelMetadata),
-		LastSeen:        time.Now(),
-		RemoteAddr:      r.RemoteAddr,
-		UserAgent:       r.UserAgent(),
-	}
->>>>>>> eb4fa4f (WIP)
 
 	s.mutex.Lock()
 	s.clients[client.ID] = client

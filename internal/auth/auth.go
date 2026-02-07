@@ -12,11 +12,27 @@ type Service struct {
 	jwtSecret []byte
 }
 
+// maskSecret returns a masked version of a secret showing only the beginning and end
+func maskSecret(secret string) string {
+	if len(secret) <= 10 {
+		// For very short secrets, just show length
+		return fmt.Sprintf("[%d chars]", len(secret))
+	}
+	
+	// Show first 5 and last 5 characters
+	return fmt.Sprintf("%s...%s (%d chars)", secret[:5], secret[len(secret)-5:], len(secret))
+}
+
 // New creates a new auth service
 func New(jwtSecret string) *Service {
 	return &Service{
 		jwtSecret: []byte(jwtSecret),
 	}
+}
+
+// GetMaskedSecret returns a masked version of the JWT secret for logging
+func (s *Service) GetMaskedSecret() string {
+	return maskSecret(string(s.jwtSecret))
 }
 
 // GenerateToken generates a JWT token for a user

@@ -162,9 +162,11 @@ func (s *Server) handleAuthentication(client *models.Client, msg map[string]inte
 	}
 
 	s.logger.Debug("Client %s attempting JWT authentication", client.ID)
+	s.logger.Debug("Using JWT secret for validation: %s", s.authService.GetMaskedSecret())
 
 	claims, err := s.authService.ValidateToken(tokenStr)
 	if err != nil {
+		s.logger.Error("Client %s authentication failed with JWT secret %s: %v", client.ID, s.authService.GetMaskedSecret(), err)
 		s.logger.ClientAuthenticationFailed(client.ID, err)
 		s.sendError(client, "Invalid token")
 		s.laravelSvc.DispatchAuthentication(client, "failed", tokenStr)

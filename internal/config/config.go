@@ -7,17 +7,6 @@ import (
 
 // Config holds all configuration for the socket server
 type Config struct {
-<<<<<<< HEAD
-	Port       string
-	JWTSecret  string
-	HTTPToken  string
-	WorkingDir string
-	PHPBinary  string
-	LaravelCmd string
-	TempDir    string
-	WebDir     string
-	Debug      bool
-=======
 	Port            string
 	JWTSecret       string
 	HTTPToken       string
@@ -25,25 +14,14 @@ type Config struct {
 	PHPBinary       string
 	LaravelCmd      string
 	TempDir         string
+	WebDir          string
 	Debug           bool
 	PerformanceLogs bool
->>>>>>> eb4fa4f (WIP)
 }
 
 // New creates a new configuration with default values
 func New() *Config {
 	return &Config{
-<<<<<<< HEAD
-		Port:       getEnv("SOCKET_PORT", "8080"),
-		JWTSecret:  getEnv("JWT_SECRET", "default-secret-key-change-in-production"),
-		HTTPToken:  getEnv("HTTP_TOKEN", ""),
-		WorkingDir: getEnv("LARAVEL_PATH", "."),
-		PHPBinary:  getEnv("PHP_BINARY", "php"),
-		LaravelCmd: getEnv("LARAVEL_COMMAND", "socket:handle"),
-		TempDir:    getEnv("SOCKET_TEMP_DIR", filepath.Join(os.TempDir(), "socket-server-payloads")),
-		WebDir:     getEnv("WEB_DIR", "./web"),
-		Debug:      getEnv("SOCKET_DEBUG", "false") == "true",
-=======
 		Port:            getEnv("SOCKET_PORT", "8080"),
 		JWTSecret:       getEnv("JWT_SECRET", "default-secret-key-change-in-production"),
 		HTTPToken:       getEnv("HTTP_TOKEN", ""),
@@ -51,18 +29,14 @@ func New() *Config {
 		PHPBinary:       getEnv("PHP_BINARY", "php"),
 		LaravelCmd:      getEnv("LARAVEL_COMMAND", "socket:handle"),
 		TempDir:         getEnv("SOCKET_TEMP_DIR", filepath.Join(os.TempDir(), "socket-server-payloads")),
+		WebDir:          getEnv("WEB_DIR", "./web"),
 		Debug:           getEnv("SOCKET_DEBUG", "false") == "true",
 		PerformanceLogs: getEnv("PERFORMANCE_LOGS", "false") == "true",
->>>>>>> eb4fa4f (WIP)
 	}
 }
 
 // LoadFromFlags updates configuration from command line flags
-<<<<<<< HEAD
-func (c *Config) LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary, laravelCmd, tempDir, webDir string) {
-=======
-func (c *Config) LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary, laravelCmd, tempDir string, performanceLogs bool) {
->>>>>>> eb4fa4f (WIP)
+func (c *Config) LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary, laravelCmd, tempDir, webDir string, performanceLogs bool) {
 	if port != "" {
 		c.Port = port
 	}
@@ -84,13 +58,10 @@ func (c *Config) LoadFromFlags(port, jwtSecret, httpToken, workingDir, phpBinary
 	if tempDir != "" {
 		c.TempDir = tempDir
 	}
-<<<<<<< HEAD
 	if webDir != "" {
 		c.WebDir = webDir
 	}
-=======
 	c.PerformanceLogs = performanceLogs
->>>>>>> eb4fa4f (WIP)
 }
 
 // Validate checks if the configuration is valid
