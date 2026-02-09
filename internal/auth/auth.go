@@ -18,7 +18,7 @@ func maskSecret(secret string) string {
 		// For very short secrets, just show length
 		return fmt.Sprintf("[%d chars]", len(secret))
 	}
-	
+
 	// Show first 5 and last 5 characters
 	return fmt.Sprintf("%s...%s (%d chars)", secret[:5], secret[len(secret)-5:], len(secret))
 }

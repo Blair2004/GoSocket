@@ -165,7 +165,7 @@ func (s *Server) KickClient(clientID string) error {
 func (s *Server) BroadcastToChannel(channelName string, message models.Message) {
 	start := time.Now()
 	s.logger.Debug("📺 BroadcastToChannel started for channel: %s", channelName)
-	s.logger.Debug("📦 Message details: Event=%s, Data=%+v, UserID=%s, Username=%s", 
+	s.logger.Debug("📦 Message details: Event=%s, Data=%+v, UserID=%s, Username=%s",
 		message.Event, message.Data, message.UserID, message.Username)
 
 	lookupStart := time.Now()
